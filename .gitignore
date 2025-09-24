@@ -1,20 +1,21 @@
-# Ignore dataset folder
+# === DATASETS ===
 data/
+*.h5
 
-# Ignore temporary or cache files
-*.log
-*.tmp
-*.out
-*.bak
-
-# Ignore Python cache
+# === PYTHON ===
 __pycache__/
 *.pyc
 *.pyo
 
-# Ignore Jupyter notebook checkpoints (if you use notebooks)
-.ipynb_checkpoints/
-
-# Ignore virtual environments
+# === ENVIRONMENTS ===
 venv/
 .env/
+
+# === JUPYTER NOTEBOOKS ===
+.ipynb_checkpoints/
+
+# === LOGS & TEMP FILES ===
+*.log
+*.tmp
+*.bak
+*.out
