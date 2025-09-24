@@ -1,9 +1,11 @@
 # Function file 
 
 import h5py, numpy as np
+import matplotlib.pyplot as plt
 import plotly.graph_objects as go
 import json 
 import os 
+import pandas as pd
 
 def load_data(filename="hgcal_electron_data_0001.h5"):
     """Load the HGCAL electron dataset from an HDF5 file.
@@ -68,3 +70,53 @@ def display_event(event_index=200, filename="hgcal_electron_data_0001.h5"):
     fig.show()
     fig.write_html(fig_path)
     print(f"Saved interactive figure as {fig_path}")
+
+def hits_per_event(filename="hgcal_electron_data_0001.h5"):
+    """Plot a histogram of the number of hits per event in the dataset.
+    Args:
+        filename (str): Name of the HDF5 file containing the dataset.
+    """
+    dataset = load_data(filename)
+    nhits = dataset["nhits"]
+    with open("config.json", "r") as f:
+        config = json.load(f)
+    figures_dir = config["figures_dir"]
+    os.makedirs(figures_dir, exist_ok=True)
+    fig, ax = plt.subplots(figsize=(8, 5))
+    ax.hist(nhits, bins=50, color='skyblue', edgecolor='black')
+    ax.set_title("Histogram of Number of Hits per Event")   
+    ax.set_xlabel("Number of Hits")
+    ax.set_ylabel("Number of Events")
+    hist_path = os.path.join(figures_dir, "hits_per_event.png")
+    plt.savefig(hist_path)
+    plt.close()
+
+def true_energy_distribution(filename="hgcal_electron_data_0001.h5"):
+    """Plot a histogram of the true energy distribution of events in the dataset.
+    Args:
+        filename (str): Name of the HDF5 file containing the dataset.
+    """
+    dataset = load_data(filename)
+    targets = dataset["target"]
+    with open("config.json", "r") as f:
+        config = json.load(f)
+    figures_dir = config["figures_dir"]
+    os.makedirs(figures_dir, exist_ok=True)
+    fig, ax = plt.subplots(figsize=(8, 5))
+    ax.hist(targets, bins=30, color='lightgreen', edgecolor='black')
+    ax.set_title("Histogram of True Energy Distribution")   
+    ax.set_xlabel("True Energy (GeV)")
+    ax.set_ylabel("Number of Events")
+    hist_path = os.path.join(figures_dir, "true_energy_distribution.png")
+    plt.savefig(hist_path)
+    plt.close()
+
+def get_layer_positions(filename="hgcal_electron_data_0001.h5"):
+    """Get the unique z-positions of the detector layers from the dataset.
+    Args:
+        filename (str): Name of the HDF5 file containing the dataset.
+    """
+    dataset = load_data(filename)
+    zs = dataset["rechit_z"]
+    unique_zs = np.unique(zs)
+    return unique_zs

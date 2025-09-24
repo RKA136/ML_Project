@@ -50,12 +50,37 @@ As stated in the [ELECTRON ENERGY REGRESSION IN THE CMS HIGH-GRANULARITY CALORIM
     - 2. hgcal_electron_data_large.h5 - Full dataset.
 
 # Functions
-Here we discuss about the function used in this project and explain the operations.
+Here we discuss about the function used in this project and explain the operations. All the functions are in the [Electron_Reg](src/Electron_Reg.py) file.
+
+## Load Data
+
+- `load_data` loads the HGCAL data from the .h5 file and converst it to a ready to use format. 
+
+```python
+def load_data(filename="hgcal_electron_data_0001.h5"):
+    """Load the HGCAL electron dataset from an HDF5 file.
+    Args:
+        filename (str): Name of the HDF5 file containing the dataset.
+    Returns:
+        dict: A dictionary containing the dataset.
+    """
+    dataset = {}
+    with open("config.json", "r") as f:
+        config = json.load(f)
+    data_dir = config["data_dir"]
+    filename = os.path.join(data_dir, filename)
+    with h5py.File(filename, "r") as f:
+        for key in f.keys():
+            dataset[key] = f[key][:]
+    return dataset
+```
 
 ## Event Display
 
 - `display_event` helps to open and show a 3d interactive plot of a electron hit event. 
-- The dataset contains a number of events that 
+- The dataset contains a number of events of the electron shower.
+- The user can choose which event he/she wants to visualize and give it as an argument in the function.
+- The function creates a .html file which can be opened in a browser and can be interacted to fully visualize the hit events and the energy deposited in the points.
 
 ```python
 def display_event(event_index=200, filename="hgcal_electron_data_0001.h5"):
@@ -65,22 +90,20 @@ def display_event(event_index=200, filename="hgcal_electron_data_0001.h5"):
         filename (str): Name of the HDF5 file containing the dataset.
     Returns: html file with interactive 3D plot of the event.
     """
+    dataset = load_data(filename)
+    nhits = dataset["nhits"]
+    xs, ys, zs, energies = dataset["rechit_x"], dataset["rechit_y"], dataset["rechit_z"], dataset["rechit_energy"]
+    targets = dataset["target"]
+    
+    i = event_index
+    start, end = int(np.sum(nhits[:i])), int(np.sum(nhits[:i+1]))
+    x, y, z, e = xs[start:end], ys[start:end], zs[start:end], energies[start:end]
+    true_E = targets[i]
     with open("config.json", "r") as f:
         config = json.load(f)
-    data_dir = config["data_dir"]
     figures_dir = config["figures_dir"]
     os.makedirs(figures_dir, exist_ok=True)
-    dataset_path = os.path.join(data_dir, filename)
-    with h5py.File(dataset_path, "r") as f:
-        nhits = f["nhits"][:]
-        xs, ys, zs, energies = f["rechit_x"][:], f["rechit_y"][:], f["rechit_z"][:], f["rechit_energy"][:]
-        targets = f["target"][:]
-        i = event_index
-        start, end = int(np.sum(nhits[:i])), int(np.sum(nhits[:i+1]))
-        x, y, z, e = xs[start:end], ys[start:end], zs[start:end], energies[start:end]
-        true_E = targets[i]
-
-    sizes = 5 # scale marker sizes with energy  
+    sizes = 5 # scale marker sizes with energy
     fig = go.Figure(data=[go.Scatter3d(
         x=x, y=y, z=z,
         mode='markers',
@@ -102,8 +125,60 @@ def display_event(event_index=200, filename="hgcal_electron_data_0001.h5"):
         ),
         margin=dict(l=0, r=0, b=0, t=40)
     )
-    fig_path = os.path.join(figures_dir, "event_display.html")
+    fig_path = os.path.join(figures_dir, f"event_display_{i}.html")
     fig.show()
     fig.write_html(fig_path)
     print(f"Saved interactive figure as {fig_path}")
+```
+
+## Hits per Event
+
+- `hits_per_event` plots the number of hits in each event as a histogram and saves the plot in the figures folder.
+
+```python
+def hits_per_event(filename="hgcal_electron_data_0001.h5"):
+    """Plot a histogram of the number of hits per event in the dataset.
+    Args:
+        filename (str): Name of the HDF5 file containing the dataset.
+    """
+    dataset = load_data(filename)
+    nhits = dataset["nhits"]
+    with open("config.json", "r") as f:
+        config = json.load(f)
+    figures_dir = config["figures_dir"]
+    os.makedirs(figures_dir, exist_ok=True)
+    fig, ax = plt.subplots(figsize=(8, 5))
+    ax.hist(nhits, bins=50, color='skyblue', edgecolor='black')
+    ax.set_title("Histogram of Number of Hits per Event")   
+    ax.set_xlabel("Number of Hits")
+    ax.set_ylabel("Number of Events")
+    hist_path = os.path.join(figures_dir, "hits_per_event.png")
+    plt.savefig(hist_path)
+    plt.close()
+```
+
+## True Energy Distrinution
+
+- `true_energy_distribution` plots the true energies in a histogram and saves the figure in the figures folder.
+
+```python
+def true_energy_distribution(filename="hgcal_electron_data_0001.h5"):
+    """Plot a histogram of the true energy distribution of events in the dataset.
+    Args:
+        filename (str): Name of the HDF5 file containing the dataset.
+    """
+    dataset = load_data(filename)
+    targets = dataset["target"]
+    with open("config.json", "r") as f:
+        config = json.load(f)
+    figures_dir = config["figures_dir"]
+    os.makedirs(figures_dir, exist_ok=True)
+    fig, ax = plt.subplots(figsize=(8, 5))
+    ax.hist(targets, bins=30, color='lightgreen', edgecolor='black')
+    ax.set_title("Histogram of True Energy Distribution")   
+    ax.set_xlabel("True Energy (GeV)")
+    ax.set_ylabel("Number of Events")
+    hist_path = os.path.join(figures_dir, "true_energy_distribution.png")
+    plt.savefig(hist_path)
+    plt.close()
 ```
