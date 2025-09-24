@@ -1,4 +1,5 @@
 {
-  "data_dir": "E:/GitHub/ML_Project/data",
-  "figures_dir": "E:/GitHub/ML_Project/figures"
+  "data_dir": "/path/to/your/data",
+  "figures_dir": "/path/to/your/figures"
 }
+
