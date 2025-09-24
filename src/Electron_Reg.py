@@ -6,6 +6,8 @@ import plotly.graph_objects as go
 import json 
 import os 
 import pandas as pd
+import cupy as cp
+from tqdm import tqdm
 
 def load_data(filename="hgcal_electron_data_0001.h5"):
     """Load the HGCAL electron dataset from an HDF5 file.
@@ -111,7 +113,16 @@ def true_energy_distribution(filename="hgcal_electron_data_0001.h5"):
     plt.savefig(hist_path)
     plt.close()
 
-def prepare_event_layer_dataframe(filename="hgcal_electron_data_0001.h5"):
+def prepare_event_layer_dataframe_cpu(filename="hgcal_electron_data_0001.h5"):
+    """
+    Prepare a DataFrame with average energy per layer for each event.
+
+    Args:
+        filename (str, optional): Name of the HDF5 file. Defaults to "hgcal_electron_data_0001.h5".
+
+    Returns:
+        pd.DataFrame: DataFrame with average energy per layer for each event.
+    """
     dataset = load_data(filename)
     nhits = dataset["nhits"]
     zs, energies = dataset["rechit_z"], dataset["rechit_energy"]
@@ -147,3 +158,95 @@ def prepare_event_layer_dataframe(filename="hgcal_electron_data_0001.h5"):
     df.insert(0, "event_no", np.arange(n_events))
 
     return df
+
+def prepare_event_layer_dataframe_gpu(filename="hgcal_electron_data_0001.h5", batch_size=10000):
+    dataset = load_data(filename)
+    nhits = dataset["nhits"].astype(int)
+    zs, energies = dataset["rechit_z"], dataset["rechit_energy"]
+
+    n_events = len(nhits)
+    print(f"Total events: {n_events}")
+
+    # First pass: get all unique z-values (on CPU to avoid VRAM overload)
+    unique_zs_cpu = np.unique(zs)
+    n_layers = len(unique_zs_cpu)
+
+    # Preallocate CPU matrix for results
+    avg_energy_matrix_cpu = np.zeros((n_events, n_layers), dtype=np.float32)
+
+    # Batch processing loop
+    start = 0
+    for batch_start in tqdm(range(0, n_events, batch_size), desc="Processing batches"):
+        batch_end = min(batch_start + batch_size, n_events)
+
+        # Slice batch
+        nhits_batch = nhits[batch_start:batch_end]
+        zs_batch = zs[start:start + nhits_batch.sum()]
+        energies_batch = energies[start:start + nhits_batch.sum()]
+
+        # Transfer to GPU
+        nhits_gpu = cp.asarray(nhits_batch)
+        zs_gpu = cp.asarray(zs_batch)
+        energies_gpu = cp.asarray(energies_batch)
+
+        # Event indices for this batch
+        event_indices = cp.repeat(cp.arange(batch_end - batch_start), nhits_gpu)
+
+        # Map z-values to layer indices (GPU search against CPU-computed unique_zs)
+        unique_zs_gpu = cp.asarray(unique_zs_cpu)
+        col_indices = cp.searchsorted(unique_zs_gpu, zs_gpu)
+
+        # Linear indices
+        linear_idx = event_indices * n_layers + col_indices
+
+        # Bin counts
+        energy_sum = cp.bincount(linear_idx, weights=energies_gpu, minlength=(batch_end - batch_start) * n_layers)
+        hit_count = cp.bincount(linear_idx, minlength=(batch_end - batch_start) * n_layers)
+
+        # Average energy
+        avg_energy = energy_sum / cp.maximum(hit_count, 1)
+        avg_energy_matrix_batch = avg_energy.reshape(batch_end - batch_start, n_layers)
+
+        # Copy results to CPU
+        avg_energy_matrix_cpu[batch_start:batch_end, :] = cp.asnumpy(avg_energy_matrix_batch)
+
+        # Free GPU memory
+        cp.get_default_memory_pool().free_all_blocks()
+
+        # Update offset into hit arrays
+        start += nhits_batch.sum()
+
+    # Build DataFrame
+    column_names = [f"z_{i+1}_average_energy" for i in range(n_layers)]
+    df = pd.DataFrame(avg_energy_matrix_cpu, columns=column_names)
+    df.insert(0, "event_no", np.arange(n_events))
+
+    return df
+
+def plot_average_energy_per_layer(df):
+    """Plot average energy per layer for a random sample of events.
+    Args:
+        df (pd.DataFrame): DataFrame containing average energy per layer for each event.
+    """
+    with open("config.json", "r") as f:
+        config = json.load(f)
+    figures_dir = config["figures_dir"]
+    os.makedirs(figures_dir, exist_ok=True)
+    n_layers = df.shape[1] - 1  # Exclude event_no column
+    layer_indices = np.arange(1, n_layers + 1)
+
+    sample_events = df.sample(n=1, random_state=42)
+
+    plt.figure(figsize=(10, 6))
+    for _, row in sample_events.iterrows():
+        plt.plot(layer_indices, row[1:], marker='o', label=f"Event {int(row['event_no'])}")
+
+    plt.title("Average Energy per Layer for Sample Events")
+    plt.xlabel("Layer (z index)")
+    plt.ylabel("Average Energy (MIP)")
+    plt.xticks(layer_indices)
+    plt.legend()
+    plt.grid()
+    plot_path = os.path.join(figures_dir, "average_energy_per_layer_sample_events.png")
+    plt.savefig(plot_path)
+    plt.close()

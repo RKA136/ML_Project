@@ -4,6 +4,14 @@
 1. [Introduction](#introduction)
 2. [Dataset](#dataset)
 3. [Functions](#functions)
+    1. [Load Data](#load-data)
+    2. [Event Display](#event-display)
+    3. [Hits Per Event](#hits-per-event)
+    4. [True Energy Distribution](#true-energy-distrinution)
+    5. [Prepare Event Layer Dataframe (CPU version)](#prepare-event-layer-dataframe-cpu-version)
+    6. [Prepare Event Layer Dataframe (GPU Version)](#prepare-event-layer-dataframe-gpu-version)
+    7. [Plot Average Energy Per Layer](#plot-average-energy-per-layer)
+
 
 # Introduction
 
@@ -64,15 +72,6 @@ def load_data(filename="hgcal_electron_data_0001.h5"):
     Returns:
         dict: A dictionary containing the dataset.
     """
-    dataset = {}
-    with open("config.json", "r") as f:
-        config = json.load(f)
-    data_dir = config["data_dir"]
-    filename = os.path.join(data_dir, filename)
-    with h5py.File(filename, "r") as f:
-        for key in f.keys():
-            dataset[key] = f[key][:]
-    return dataset
 ```
 
 ## Event Display
@@ -90,45 +89,6 @@ def display_event(event_index=200, filename="hgcal_electron_data_0001.h5"):
         filename (str): Name of the HDF5 file containing the dataset.
     Returns: html file with interactive 3D plot of the event.
     """
-    dataset = load_data(filename)
-    nhits = dataset["nhits"]
-    xs, ys, zs, energies = dataset["rechit_x"], dataset["rechit_y"], dataset["rechit_z"], dataset["rechit_energy"]
-    targets = dataset["target"]
-    
-    i = event_index
-    start, end = int(np.sum(nhits[:i])), int(np.sum(nhits[:i+1]))
-    x, y, z, e = xs[start:end], ys[start:end], zs[start:end], energies[start:end]
-    true_E = targets[i]
-    with open("config.json", "r") as f:
-        config = json.load(f)
-    figures_dir = config["figures_dir"]
-    os.makedirs(figures_dir, exist_ok=True)
-    sizes = 5 # scale marker sizes with energy
-    fig = go.Figure(data=[go.Scatter3d(
-        x=x, y=y, z=z,
-        mode='markers',
-        marker=dict(
-            size=sizes,
-            color=e,
-            colorscale='Viridis',
-            colorbar=dict(title="Energy (MIP)"),
-            opacity=0.7
-        ),
-        text=[f"E={ee:.2f} MIP" for ee in e],  # hover text
-    )])
-    fig.update_layout(
-        title=f"Interactive 3D Shower (Event {i}, True E = {true_E:.1f} GeV)",
-        scene=dict(
-            xaxis_title='x [cm]',
-            yaxis_title='y [cm]',
-            zaxis_title='z [cm]'
-        ),
-        margin=dict(l=0, r=0, b=0, t=40)
-    )
-    fig_path = os.path.join(figures_dir, f"event_display_{i}.html")
-    fig.show()
-    fig.write_html(fig_path)
-    print(f"Saved interactive figure as {fig_path}")
 ```
 
 ## Hits per Event
@@ -141,20 +101,6 @@ def hits_per_event(filename="hgcal_electron_data_0001.h5"):
     Args:
         filename (str): Name of the HDF5 file containing the dataset.
     """
-    dataset = load_data(filename)
-    nhits = dataset["nhits"]
-    with open("config.json", "r") as f:
-        config = json.load(f)
-    figures_dir = config["figures_dir"]
-    os.makedirs(figures_dir, exist_ok=True)
-    fig, ax = plt.subplots(figsize=(8, 5))
-    ax.hist(nhits, bins=50, color='skyblue', edgecolor='black')
-    ax.set_title("Histogram of Number of Hits per Event")   
-    ax.set_xlabel("Number of Hits")
-    ax.set_ylabel("Number of Events")
-    hist_path = os.path.join(figures_dir, "hits_per_event.png")
-    plt.savefig(hist_path)
-    plt.close()
 ```
 
 ## True Energy Distrinution
@@ -167,18 +113,46 @@ def true_energy_distribution(filename="hgcal_electron_data_0001.h5"):
     Args:
         filename (str): Name of the HDF5 file containing the dataset.
     """
-    dataset = load_data(filename)
-    targets = dataset["target"]
-    with open("config.json", "r") as f:
-        config = json.load(f)
-    figures_dir = config["figures_dir"]
-    os.makedirs(figures_dir, exist_ok=True)
-    fig, ax = plt.subplots(figsize=(8, 5))
-    ax.hist(targets, bins=30, color='lightgreen', edgecolor='black')
-    ax.set_title("Histogram of True Energy Distribution")   
-    ax.set_xlabel("True Energy (GeV)")
-    ax.set_ylabel("Number of Events")
-    hist_path = os.path.join(figures_dir, "true_energy_distribution.png")
-    plt.savefig(hist_path)
-    plt.close()
+```
+
+## Prepare Event Layer Dataframe (CPU version)
+
+- `prepare_event_layer_dataframe_cpu` prepares a dataframe in the format of the 
+```text
+   event_no  z_1_average_energy  z_2_average_energy  ...  z_26_average_energy  z_27_average_energy  z_28_average_energy
+0         0           29.806881           14.598131  ...             2.974839             3.965091             4.667946
+1         1           15.072347           22.016330  ...             3.932254             2.590214             2.942818
+2         2           20.345368           17.638254  ...             4.094181            11.780640             5.602276
+3         3           10.748526           34.254235  ...             3.351710             1.097838             0.000000
+4         4            4.632542           11.599174  ...             2.674365             4.874276             3.127094
+```
+
+- And has a dimension [len(event) rows x 29 columns]
+
+```python
+def prepare_event_layer_dataframe_cpu(filename="hgcal_electron_data_0001.h5"):
+    """
+    Prepare a DataFrame with average energy per layer for each event.
+
+    Args:
+        filename (str, optional): Name of the HDF5 file. Defaults to "hgcal_electron_data_0001.h5".
+
+    Returns:
+        pd.DataFrame: DataFrame with average energy per layer for each event.
+    """
+```
+## Prepare Event Layer Dataframe (GPU version)
+
+<span style="color:red">Not ready yet</span>
+
+## Plot Average Energy Per Layer
+
+- `plot_average_energy_per_layer` takes a random event from the dataframe containing the average energy per layer for each event and plots it.
+
+```python
+def plot_average_energy_per_layer(df):
+    """Plot average energy per layer for a random sample of events.
+    Args:
+        df (pd.DataFrame): DataFrame containing average energy per layer for each event.
+    """
 ```
