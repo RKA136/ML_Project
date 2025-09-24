@@ -1,4 +1,4 @@
-from Electron_Reg import display_event, hits_per_event, true_energy_distribution, get_layer_positions, prepare_z_energy_dataframe
+from Electron_Reg import display_event, hits_per_event, true_energy_distribution, prepare_event_layer_dataframe
 
 # # Visualize a specific event (you can change the event_index)  
 # display_event(event_index=3556, filename="hgcal_electron_data_0001.h5")
@@ -14,5 +14,5 @@ from Electron_Reg import display_event, hits_per_event, true_energy_distribution
 # print("Unique Layer Positions (z):", layer_positions)
 
 # # Prepare z-energy DataFrame
-z_energy_df = prepare_z_energy_dataframe(filename="hgcal_electron_data_0001.h5")
+z_energy_df = prepare_event_layer_dataframe(filename="hgcal_electron_data_0001.h5")
 print(z_energy_df.head())

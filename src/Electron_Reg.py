@@ -111,35 +111,46 @@ def true_energy_distribution(filename="hgcal_electron_data_0001.h5"):
     plt.savefig(hist_path)
     plt.close()
 
-def get_layer_positions(filename="hgcal_electron_data_0001.h5"):
-    """Get the unique z-positions of the detector layers from the dataset.
-    Args:
-        filename (str): Name of the HDF5 file containing the dataset.
+def prepare_event_layer_dataframe(filename="hgcal_electron_data_0001.h5"):
+    """
+    Returns a DataFrame where each row is an event and columns are the average
+    energy in each unique z-layer (z_1 ... z_28), fully vectorized.
     """
     dataset = load_data(filename)
-    zs = dataset["rechit_z"]
-    unique_zs = np.unique(zs)
-    return unique_zs
+    nhits = dataset["nhits"]
+    zs, energies = dataset["rechit_z"], dataset["rechit_energy"]
 
-def prepare_z_energy_dataframe(filename="hgcal_electron_data_0001.h5"):
-    """Prepare a DataFrame with z-positions and corresponding energies for all hits.
-    Args:
-        filename (str): Name of the HDF5 file containing the dataset.
-    Returns:
-        pd.DataFrame: DataFrame with nhits containing a list of z values and average of energies at that z position.
-    """
-    load_dataset = load_data(filename)
-    nhits = load_dataset["nhits"]
-    zs, energies = load_dataset["rechit_z"], load_dataset["rechit_energy"]
+    n_events = len(nhits)
 
-    for i in range(len(nhits)):
-        start, end = int(np.sum(nhits[:i])), int(np.sum(nhits[:i+1]))
-        z, e = zs[start:end], energies[start:end]
-        z_values = np.unique(z)
-        avg_energies = [np.mean(e[z == zv]) for zv in z_values]
-        if i == 0:
-            df = pd.DataFrame({'z': z_values, 'energy': avg_energies})
-        else:
-            temp_df = pd.DataFrame({'z': z_values, 'energy': avg_energies})
-            df = pd.concat([df, temp_df], ignore_index=True)
+    # Get unique sorted z-layers
+    unique_zs = np.sort(np.unique(zs))
+    n_layers = len(unique_zs)
+
+    # Compute event indices for each hit
+    event_indices = np.repeat(np.arange(n_events), nhits)
+
+    # Map each z to a column index (0..27)
+    z_to_col = {z: i for i, z in enumerate(unique_zs)}
+    col_indices = np.array([z_to_col[z] for z in zs])
+
+    # Compute a 2D linear index for bincount
+    linear_idx = event_indices * n_layers + col_indices
+
+    # Sum energies per event-layer
+    energy_sum = np.bincount(linear_idx, weights=energies, minlength=n_events * n_layers)
+
+    # Count hits per event-layer
+    hit_count = np.bincount(linear_idx, minlength=n_events * n_layers)
+
+    # Avoid division by zero
+    avg_energy = energy_sum / np.maximum(hit_count, 1)
+
+    # Reshape to (n_events, n_layers)
+    avg_energy_matrix = avg_energy.reshape(n_events, n_layers)
+
+    # Build DataFrame
+    column_names = [f"z_{i+1}_average_energy" for i in range(n_layers)]
+    df = pd.DataFrame(avg_energy_matrix, columns=column_names)
+    df.insert(0, "event_no", np.arange(n_events))
+
     return df
