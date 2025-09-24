@@ -1,0 +1,20 @@
+# Ignore dataset folder
+data/
+
+# Ignore temporary or cache files
+*.log
+*.tmp
+*.out
+*.bak
+
+# Ignore Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Ignore Jupyter notebook checkpoints (if you use notebooks)
+.ipynb_checkpoints/
+
+# Ignore virtual environments
+venv/
+.env/
