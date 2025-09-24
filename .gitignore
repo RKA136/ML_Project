@@ -21,5 +21,4 @@ venv/
 *.out
 
 # === config.json ===
-*config.json
-
+config.json
