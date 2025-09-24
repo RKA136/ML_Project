@@ -120,3 +120,26 @@ def get_layer_positions(filename="hgcal_electron_data_0001.h5"):
     zs = dataset["rechit_z"]
     unique_zs = np.unique(zs)
     return unique_zs
+
+def prepare_z_energy_dataframe(filename="hgcal_electron_data_0001.h5"):
+    """Prepare a DataFrame with z-positions and corresponding energies for all hits.
+    Args:
+        filename (str): Name of the HDF5 file containing the dataset.
+    Returns:
+        pd.DataFrame: DataFrame with nhits containing a list of z values and average of energies at that z position.
+    """
+    load_dataset = load_data(filename)
+    nhits = load_dataset["nhits"]
+    zs, energies = load_dataset["rechit_z"], load_dataset["rechit_energy"]
+
+    for i in range(len(nhits)):
+        start, end = int(np.sum(nhits[:i])), int(np.sum(nhits[:i+1]))
+        z, e = zs[start:end], energies[start:end]
+        z_values = np.unique(z)
+        avg_energies = [np.mean(e[z == zv]) for zv in z_values]
+        if i == 0:
+            df = pd.DataFrame({'z': z_values, 'energy': avg_energies})
+        else:
+            temp_df = pd.DataFrame({'z': z_values, 'energy': avg_energies})
+            df = pd.concat([df, temp_df], ignore_index=True)
+    return df
