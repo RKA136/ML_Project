@@ -16,3 +16,4 @@ from Electron_Reg import display_event, hits_per_event, true_energy_distribution
 # # Prepare z-energy DataFrame
 z_energy_df = prepare_event_layer_dataframe(filename="hgcal_electron_data_0001.h5")
 print(z_energy_df.head())
+print(z_energy_df.info())
