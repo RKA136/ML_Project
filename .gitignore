@@ -19,3 +19,7 @@ venv/
 *.tmp
 *.bak
 *.out
+
+# === config.json ===
+config.json
+
