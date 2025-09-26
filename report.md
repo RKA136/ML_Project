@@ -117,7 +117,50 @@ def true_energy_distribution(filename="hgcal_electron_data_0001.h5"):
 
 ## Prepare Event Layer Dataframe (CPU version)
 
-- `prepare_event_layer_dataframe_cpu` prepares a dataframe in the format of the 
+### Description
+Processes calorimeter hit data stored in an HDF5 file and prepares a **pandas DataFrame** containing the **average energy deposited per detector layer for each event**.  
+It leverages vectorized NumPy operations (`bincount`, mapping, reshaping) to efficiently compute average energies without explicit Python loops.
+
+---
+
+### Parameters
+- **filename** (*str*, optional):  
+  Path to the input HDF5 file containing calorimeter event data.  
+  Default: `"hgcal_electron_data_0001.h5"`  
+
+---
+
+### Returns
+- **pd.DataFrame**:  
+  A DataFrame where:
+  - Each row corresponds to a single event.
+  - Columns include:
+    - `"event_no"`: The event index (0-based).
+    - `"z_i_average_energy"`: The average energy deposited in the *i-th layer* (based on sorted unique z-values).
+
+---
+
+### Processing Steps
+1. **Load Data**: Extracts `nhits`, `rechit_z`, and `rechit_energy` arrays from the input file.  
+2. **Prepare Metadata**:
+   - Ensures `nhits` is cast to integer (avoids type errors).
+   - Identifies unique sorted `z` positions → defines detector layers.  
+3. **Index Mapping**:
+   - Creates `event_indices` (mapping each hit to its event).
+   - Maps `z` values to corresponding layer indices.  
+   - Constructs **linear indices** for efficient aggregation.  
+4. **Aggregation**:
+   - Computes **sum of energies per (event, layer)**.  
+   - Computes **hit counts per (event, layer)**.  
+   - Divides sums by counts → **average energies**.  
+5. **Reshape and Format**:
+   - Reshapes results into `(n_events, n_layers)`.  
+   - Creates a DataFrame with descriptive column names.  
+   - Inserts `"event_no"` as the first column.  
+
+---
+
+### Example Output (Schema)
 ```text
    event_no  z_1_average_energy  z_2_average_energy  ...  z_26_average_energy  z_27_average_energy  z_28_average_energy
 0         0           29.806881           14.598131  ...             2.974839             3.965091             4.667946
@@ -128,6 +171,7 @@ def true_energy_distribution(filename="hgcal_electron_data_0001.h5"):
 ```
 
 - And has a dimension [len(event) rows x 29 columns]
+
 
 ```python
 def prepare_event_layer_dataframe_cpu(filename="hgcal_electron_data_0001.h5"):
@@ -141,6 +185,105 @@ def prepare_event_layer_dataframe_cpu(filename="hgcal_electron_data_0001.h5"):
         pd.DataFrame: DataFrame with average energy per layer for each event.
     """
 ```
+
+## Line-by-Line Explanation of `prepare_event_layer_dataframe_cpu`
+
+This section breaks down each line of the function and explains its role with examples.
+
+---
+
+### Load the dataset
+```python
+dataset = load_data(filename)
+```
+- Calls the custom function `load_data` to read the HDF5 file.
+
+### Extract relevant arrays
+
+```python
+nhits = dataset["nhits"]
+zs, energies = dataset["rechit_z"], dataset["rechit_energy"]
+```
+
+- Assigns number of hits per event (`nhits`), hit positions(`zs`), and energy values(`energies`).
+
+### Identify unique detector layers
+
+```python
+unique_zs = np.sort(np.unique(zs))
+n_layers = len(unique_zs)
+```
+
+- Find unique sorted `z` positions → defines detector layers.
+
+### Event index for each hit
+
+```python
+event_indices = np.repeat(np.arange(n_events), nhits)
+```
+
+- Expands the event numbers so each hit is linked to its event.
+
+### Map z-values to layer indices
+
+```python
+z_to_col = {z: i for i, z in enumerate(unique_zs)}
+col_indices = np.array([z_to_col[z] for z in zs])
+```
+
+- Creates a dictionary mapping each unique `z` to a layer index.
+
+### Construct linear indices
+
+```python
+linear_idx = event_indices * n_layers + col_indices
+```
+
+- Flattens `(event,layers)` pairs into single indices for np.bitcount.
+
+### Aggregate energies per (event, layer)
+
+```python
+energy_sum = np.bincount(linear_idx, weights=energies, minlength=n_events * n_layers)
+hit_count = np.bincount(linear_idx, minlength=n_events * n_layers)
+```
+
+- `energy_sum`: sums energy for each `(event, layer)` bin.
+- `hit_count`: counts hits for each `(event, layer)` bin.
+
+### Compute average energies
+
+```python
+avg_energy = energy_sum / np.maximum(hit_count, 1)
+```
+- Divides energy sums by hit_counts to get averages.
+- uses `np.maximum(hit_count,1) to avoide division by 0.
+
+### Reshape into event × layer matrix
+
+```python
+avg_energy_matrix = avg_energy.reshape(n_events, n_layers)
+```
+
+- Reshapes flat array into a 2D matrix.
+
+### Create Column names 
+
+```python
+column_names = [f"z_{i+1}_average_energy" for i in range(n_layers)]
+```
+
+- Generates discriptive column headers.
+
+### Build DataFrame
+
+```python
+column_names = [f"z_{i+1}_average_energy" for i in range(n_layers)]
+```
+
+- Builds final DataFrame:
+    - Adds `event_no` as column.
+
 ## Prepare Event Layer Dataframe (GPU version)
 
 <span style="color:red">Not ready yet</span>
