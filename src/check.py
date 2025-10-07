@@ -1,7 +1,7 @@
 import h5py
 import numpy as np
 import torch
-from enereg import prepare_event_feature_tensors_gpu, load_h5  # your function
+from Preprocessing import prepare_event_feature_tensors_gpu, load_h5  # your function
 
 # Generate full tensors from your function
 filename = "hgcal_electron_data_0001.h5"  # example
