@@ -128,6 +128,11 @@ def prepare_event_feature_tensors_gpu(filename, batch_size=20000):
     # Convert to torch tensors
     X_tensor = torch.tensor(X, dtype=torch.float32)
     y_tensor = torch.tensor(y, dtype=torch.float32)
-
+    
+    # Save in a file
+    with open("config.json", "r") as f:
+        config = json.load(f)
+        data_dir = config["data_dir"]
+    torch.save({"X": X_tensor, "y": y_tensor}, os.path.join(data_dir, "processed_data.pt"))
     print(f"Generated {X.shape[0]} events, {X.shape[1]} features each.")
     return X_tensor, y_tensor
