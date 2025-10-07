@@ -4,8 +4,8 @@ Reconstruction of electrons with the CMS HGCAL beam-test prototype.
 - For the data and figures folder path please create a `config.json` file and add the path to the data and the figures folder in the format 
 ```text
 {
-  "data_dir": "E:/GitHub/ML_Project/data",
-  "figures_dir": "E:/GitHub/ML_Project/figures"
+  "data_dir": "your/data/dir",
+  "figures_dir": "your/figures/dir"
 }
 ```
 

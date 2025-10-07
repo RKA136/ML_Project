@@ -27,11 +27,11 @@ print(f"Time taken to prepare the dataframe for use_gpu={use_gpu}:", time_end - 
 # 3. Plot Average Energy per Layer
 # ---------------------------
 
-# plot_average_energy_per_layer(df)
-# print("Plot saved in figures directory.")
+plot_average_energy_per_layer(df)
+print("Plot saved in figures directory.")
 
 # ---------------------------
 # 4. Plot Summary of Average Energy per Layer
 # ---------------------------
-plot_average_energy_per_layer_summary(df, save_name= "average_energy_per_layer_summary_gpu.png" if use_gpu else "average_energy_per_layer_summary_cpu.png")
-print("Summary plot saved in figures directory.")
+# plot_average_energy_per_layer_summary(df, save_name= "average_energy_per_layer_summary_gpu.png" if use_gpu else "average_energy_per_layer_summary_cpu.png")
+# print("Summary plot saved in figures directory.")
