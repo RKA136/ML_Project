@@ -115,7 +115,7 @@ if __name__ == "__main__":
     device = "cuda" if torch.cuda.is_available() else "cpu"
     model = EnergyRegressor(X_tensor.shape[1]).to(device)
     criterion = nn.MSELoss()
-    optimizer = optim.Adam(model.parameters(), lr=1e-3)
+    optimizer = optim.AdamW(model.parameters(), lr=1e-3)
 
     # Step 4: Train Model
     model, Loss_history = train_model(model, train_loader, val_loader, criterion, optimizer, n_epochs=50, device=device)

@@ -1,11 +1,22 @@
 import h5py
 import numpy as np
-import torch
+import time
 from Preprocessing import prepare_event_feature_tensors_gpu, load_h5  # your function
+from preprocessing_cpu import prepare_event_feature_tensors_cpu_lazy
 
-# Generate full tensors from your function
 filename = "hgcal_electron_data_0001.h5"  # example
+
+# Generate full tensors from function using GPU
+start_time_1 = time.time()
 X_tensor, y_tensor = prepare_event_feature_tensors_gpu(filename, batch_size=20000)
+stop_time_1 = time.time()
+print(f"Processed file generated in {stop_time_1 - start_time_1} sec")
+
+# Generate full tensors from function using cpu
+start_time_2 = time.time()
+X , y = prepare_event_feature_tensors_cpu_lazy(filename, batch_size=20000)
+stop_time_2 = time.time()
+print(f"Processed file generated in {stop_time_2 - start_time_2} sec")
 
 # Load raw data for manual check
 data = load_h5(filename)
@@ -54,16 +65,28 @@ E_layer_frac = E_layer_sum / E_sum
 # Stack features
 features_manual = np.concatenate([[E_sum, E_max, r_std, z_std, r90], E_layer_frac])
 
-# Compare with full X_tensor
-X_event = X_tensor[event_idx].numpy()
+# Compare with full X_tensor in gpu
+X_event_1 = X_tensor[event_idx].numpy()
+
+# Compare with full X tensor in cpu
+X_event_2 = X[event_idx].numpy()
 
 print("Manual features:", features_manual)
-print("GPU function features:", X_event)
+print("GPU function features:", X_event_1)
+print("CPU function features:", X_event_2)
 
-# Compare each component
-for i, (manual, gpu) in enumerate(zip(features_manual, X_event)):
-    diff = abs(manual - gpu)
-    if diff < 1e-3:
-        print(f"Feature {i}: manual={manual:.6f}, GPU={gpu:.6f}, diff={diff:.6e} (MATCH)")
+# Compare each component in GPU function
+for i, (manual, gpu) in enumerate(zip(features_manual, X_event_1)):
+    diff_1 = abs(manual - gpu)
+    if diff_1 < 1e-3:
+        print(f"Feature {i}: manual={manual:.6f}, GPU={gpu:.6f}, diff={diff_1:.6e} (MATCH)")
     else:
-        print(f"FeatSure {i}: manual={manual:.6f}, GPU={gpu:.6f}, diff={diff:.6e} (MISMATCH)")
+        print(f"FeatSure {i}: manual={manual:.6f}, GPU={gpu:.6f}, diff={diff_1:.6e} (MISMATCH)")
+        
+# Compare each component in CPU function
+for i, (manual, cpu) in enumerate(zip(features_manual, X_event_2)):
+    diff_2 = abs(manual - cpu)
+    if diff_2 < 1e-3:
+        print(f"Feature {i}: manual={manual:.6f}, GPU={cpu:.6f}, diff={diff_2:.6e} (MATCH)")
+    else:
+        print(f"FeatSure {i}: manual={manual:.6f}, GPU={cpu:.6f}, diff={diff_2:.6e} (MISMATCH)")
