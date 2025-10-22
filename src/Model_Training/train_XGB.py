@@ -8,7 +8,8 @@ import torch
 import numpy as np
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
-from xgboost import XGBRegressor
+# from xgboost import XGBRegressor
+import xgboost as xgb
 import joblib
 import matplotlib.pyplot as plt
 
@@ -42,7 +43,7 @@ print(f"Validation set: {X_val.shape[0]} events")
 # -----------------------------
 # Initialize XGBRegressor (GPU)
 # -----------------------------
-model = XGBRegressor(
+model = xgb.XGBRegressor(
     n_estimators=1000,
     learning_rate=0.05,
     max_depth=6,
@@ -55,7 +56,9 @@ model = XGBRegressor(
     tree_method="gpu_hist",      # GPU acceleration
     predictor="gpu_predictor",   # ensures GPU usage
     random_state=42,
-    verbosity=1
+    verbosity=1,
+    eval_metric="rmse",
+    early_stopping_rounds=20
 )
 
 # -----------------------------
@@ -64,8 +67,6 @@ model = XGBRegressor(
 model.fit(
     X_train, y_train,
     eval_set=[(X_val, y_val)],
-    eval_metric="rmse",
-    early_stopping_rounds=20,
     verbose=True
 )
 

@@ -86,7 +86,7 @@ print("Manual features:", features_manual)
 print("GPU (loaded) features:", X_event_1)
 
 for i, (manual, gpu) in enumerate(zip(features_manual, X_event_1)):
-    diff_1 = abs(manual - gpu)
+    diff_1 = abs(manual - gpu)/manual
     if diff_1 < 1e-3:
         print(f"Feature {i}: manual={manual:.6f}, GPU={gpu:.6f}, diff={diff_1:.6e} (MATCH)")
     else:
