@@ -1,5 +1,5 @@
 # =============================
-# XGBoost Regression Training (GPU) without E_sum and E_max
+# XGBoost Regression Training (GPU) — Using Vectorized Features
 # =============================
 
 import os
@@ -13,26 +13,31 @@ import joblib
 import matplotlib.pyplot as plt
 
 # -----------------------------
-# Load preprocessed tensors
+# Load config and data
 # -----------------------------
 with open("config.json", "r") as f:
     config = json.load(f)
+
 data_dir = config["data_dir"]
+input_file = os.path.join(data_dir, "hgcal_electron_data_large_processed.pt")
 
-data_path = os.path.join(data_dir, "processed_data_0001.pt")
-data = torch.load(data_path)
+print(f"Loading preprocessed data from: {input_file}")
+data = torch.load(input_file)
 
-X_tensor = data["X"]
-y_tensor = data["y"]
+X = data["data"].numpy()
+y = data["targets"].numpy().ravel()
+
+print(f"Loaded dataset: X={X.shape}, y={y.shape}")
 
 # -----------------------------
-# Convert to numpy arrays, drop E_sum and E_max
+# Feature naming (based on preprocessing)
 # -----------------------------
-# Columns 0=E_sum, 1=E_max → remove both
-X = np.delete(X_tensor.numpy(), [0, 1], axis=1)
-y = y_tensor.numpy().ravel()  # flatten to 1D array
-
-print(f"Dataset shape after dropping E_sum and E_max: X={X.shape}, y={y.shape}")
+n_layers = 28
+feature_names = [f"layer_frac_{i}" for i in range(n_layers)] + [
+    "r_cog", "r_k3", "r_k4", "r_k5",
+    "z_cog", "z_k3", "z_k4", "z_k5"
+]
+assert len(feature_names) == X.shape[1], "Feature name count mismatch!"
 
 # -----------------------------
 # Train/Validation Split
@@ -40,11 +45,12 @@ print(f"Dataset shape after dropping E_sum and E_max: X={X.shape}, y={y.shape}")
 X_train, X_val, y_train, y_val = train_test_split(
     X, y, test_size=0.2, random_state=42
 )
+
 print(f"Training set: {X_train.shape[0]} events")
 print(f"Validation set: {X_val.shape[0]} events")
 
 # -----------------------------
-# Initialize XGBRegressor (GPU)
+# Initialize XGBoost Regressor (GPU)
 # -----------------------------
 model = xgb.XGBRegressor(
     n_estimators=1000,
@@ -90,21 +96,21 @@ print(f"R2   = {r2:.4f}")
 # -----------------------------
 # Feature Importance Plot
 # -----------------------------
-n_features = X.shape[1]
-# Feature names: skip E_sum and E_max, keep r_std, z_std, r90 + all layer fractions
-feature_names = ["r_std", "z_std", "r90"] + [f"E_layer_frac_{i}" for i in range(n_features - 3)]
-
-plt.figure(figsize=(10,6))
-plt.barh(range(n_features), model.feature_importances_)
-plt.yticks(range(n_features), feature_names)
+plt.figure(figsize=(10, 8))
+sorted_idx = np.argsort(model.feature_importances_)[::-1]
+plt.barh(
+    np.array(feature_names)[sorted_idx],
+    model.feature_importances_[sorted_idx]
+)
 plt.xlabel("Feature Importance")
-plt.title("XGBoost Feature Importance (without E_sum and E_max)")
+plt.title("XGBoost Feature Importance (Vectorized Features)")
+plt.gca().invert_yaxis()
 plt.tight_layout()
 plt.show()
 
 # -----------------------------
-# Save the Trained Model
+# Save Trained Model
 # -----------------------------
-model_path = os.path.join(data_dir, "xgb_regressor_model_no_Esum_Emax.joblib")
+model_path = os.path.join(data_dir, "xgb_regressor_vectorized.joblib")
 joblib.dump(model, model_path)
-print(f"Trained model saved at: {model_path}")
+print(f"\nTrained model saved at: {model_path}")
