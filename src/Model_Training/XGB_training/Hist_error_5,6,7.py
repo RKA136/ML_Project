@@ -36,7 +36,7 @@ MODEL_DIR = "model"
 CSV_FILENAME = os.path.join(MODEL_DIR, "model_comparison_v5_v7.csv")
 SAVE_FIG = True
 OUT_FIG_PATH = os.path.join(MODEL_DIR, "hist_error_v5_v7.png")
-ERROR_CUTOFF = 20
+ERROR_CUTOFF = 100
 BINS = 40
 
 # ================================================================

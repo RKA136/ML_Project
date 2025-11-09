@@ -94,7 +94,7 @@ def load_processed_tensors():
     with open("config.json", "r") as f:
         config = json.load(f)
     data_dir = config.get("data_dir", ".")
-    path = os.path.join(data_dir, "processed_data_0001_v4.pt")
+    path = os.path.join(data_dir, "processed_data_large_v4.pt")
     if not os.path.exists(path):
         raise FileNotFoundError(f"Processed data file not found: {path}")
 
