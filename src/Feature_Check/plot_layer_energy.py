@@ -4,55 +4,48 @@ import matplotlib.pyplot as plt
 import json
 import os
 
-# ===========================
 # Load processed data
-# ===========================
 with open("config.json", "r") as f:
     config = json.load(f)
-data_dir = config["data_dir"]
+    data_dir = config["data_dir"]
 
-data_path = os.path.join(data_dir, "processed_data_large.pt")
-data = torch.load(data_path)
+data = torch.load(os.path.join(data_dir, "processed_data_large_v3.pt"))
+X = data["X"].numpy()  # shape: (n_events, n_layers)
+y = data["y"].numpy().flatten()  # shape: (n_events,)
 
-X = data["X"].numpy()  # features: [E_sum, E_max, r_std, z_std, r90, E_layer_frac...]
-y = data["y"].numpy().flatten()  # true energy
+# Specify the target beam energies you want to plot
+target_values = [20.0, 100.0, 300.0]  # GeV
+tolerance = 1.0  # ± tolerance around target value
 
-# ===========================
-# Target energies
-# ===========================
-target_energy_list = [20.0, 100.0, 300.0]  # GeV
-tolerance = 0.5         # ± tolerance to select events
-colors = ['skyblue', 'salmon', 'limegreen']
+plt.figure(figsize=(9,6))
+plt.style.use("ggplot")
+colors = ['blue', 'green', 'red']
 
-plt.figure(figsize=(10, 6))
+for target, color in zip(target_values, colors):
+    # Select events within tolerance
+    mask = np.abs(y - target) <= tolerance
+    X_selected = X[mask]
 
-for target_energy, color in zip(target_energy_list, colors):
-    mask = (y >= target_energy - tolerance) & (y <= target_energy + tolerance)
-    X_target = X[mask]
-
-    if X_target.shape[0] == 0:
-        print(f"No events found for target energy ≈ {target_energy} GeV")
+    if X_selected.shape[0] == 0:
+        print(f"No events found around {target} GeV. Skipping.")
         continue
 
-    # Layer-wise absolute energy
-    E_sum_target = X_target[:, 0]
-    E_layer_frac = X_target[:, 5:]
-    n_layers = E_layer_frac.shape[1]
-    E_layer_abs = E_layer_frac * E_sum_target[:, None]
+    # Compute mean and SEM per layer
+    mean_frac = X_selected.mean(axis=0)
+    sem_frac = X_selected.std(axis=0) / np.sqrt(X_selected.shape[0])
 
-    # Mean and std per layer
-    mean_E_layer = np.mean(E_layer_abs, axis=0)
-    std_E_layer = np.std(E_layer_abs, axis=0) # Change the errorbar
-
+    n_layers = X_selected.shape[1]
     layers = np.arange(1, n_layers + 1)
-    plt.errorbar(layers, mean_E_layer, yerr=std_E_layer, fmt='o-', 
-                 color=color, ecolor='gray', elinewidth=1.5, capsize=3, alpha=0.8,
-                 label=f'{target_energy} GeV')
 
-plt.xlabel("Z Layer Index")
-plt.ylabel("Measured Energy per Layer")
-plt.title("Measured Energy per Layer for Multiple Target Energies")
+    # Plot with error bars
+    plt.errorbar(layers, mean_frac, yerr=sem_frac, fmt='o--', capsize=4,
+                markersize=3, color=color, label=f"{target} GeV")
+
+plt.xlabel("Layer Number")
+plt.ylabel("Mean Measured Energy per Layer")
+plt.title("Longitudinal Electromagnetic Shower Profile")
+plt.xticks(layers)
+plt.grid(axis='y', linestyle='--', alpha=0.7)
 plt.legend()
-plt.grid(alpha=0.3)
 plt.tight_layout()
 plt.show()

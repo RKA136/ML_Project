@@ -57,15 +57,15 @@ def per_event_feature_calculation(filename, batch_size=20000):
             linear_idx = event_ids * n_layers + layer_index
             E_layer_sum = np.bincount(linear_idx, weights=Energy, minlength=(batch_end - batch_start) * n_layers)
             E_layer_sum = E_layer_sum.reshape(batch_end - batch_start, n_layers)
-            E_layer_frac = E_layer_sum / E_sum[:, None]
+            # E_layer_frac = E_layer_sum / E_sum[:, None]
             
-            feats = np.concatenate([E_layer_frac], axis=1)
+            feats = np.concatenate([E_layer_sum], axis=1)
             
             feature_list.append(feats)
             
             start_index += total_hits
         
-        true_E_all = f["target"][:].astype(np.float32)
+        true_E_all = f["true_energy"][:].astype(np.float32)
         
     X = np.vstack(feature_list)
     y = true_E_all[:X.shape[0]].reshape(-1,1)
@@ -81,5 +81,5 @@ def per_event_feature_calculation(filename, batch_size=20000):
     return X_tensor, y_tensor
 
 if __name__ == "__main__":
-    filename = "hgcal_electron_data_0001.h5"
+    filename = "hgcal_electron_data_large.h5"
     per_event_feature_calculation(filename, 20000)

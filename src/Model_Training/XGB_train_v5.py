@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 """
-XGB_train_v2.py
+XGB_train_v5.py
 -----------------------------------
-Train an XGBoost regressor on processed_data.pt
+Train an XGBoost regressor on processed_data_0001_v4.pt
 and evaluate with MSE, RMSE, MAE, and relative error metrics.
 
 Generates:
- - figures/metrics_vs_epochs.png
- - figures/relative_error_vs_epochs.png
- - figures/feature_importance.png
- - model/xgb_model.json
+ - figures_v4/metrics_vs_epochs.png
+ - figures_v4/relative_error_vs_epochs.png
+ - figures_v4/feature_importance.png
+ - model_v4/xgb_model_v4.json
 """
 
 import os
@@ -32,8 +32,8 @@ VAL_SIZE = 0.10
 RANDOM_STATE = 42
 USE_GPU = False
 SCALE_FEATURES = False
-MODEL_DIR = "model"
-FIGURES_DIR = "figures"
+MODEL_DIR = "model_v4"
+FIGURES_DIR = "figures_v4"
 VERBOSE_EVAL = 10
 
 xgb_params = {
@@ -67,11 +67,11 @@ def mean_absolute_relative_error(preds, dtrain):
 
 
 def load_processed_tensors():
-    """Load processed features and labels from processed_data.pt"""
+    """Load processed features and labels from processed_data_0001_v4.pt"""
     with open("config.json", "r") as f:
         config = json.load(f)
     data_dir = config.get("data_dir", ".")
-    path = os.path.join(data_dir, "processed_data_large_v3.pt")
+    path = os.path.join(data_dir, "processed_data_0001_v4.pt")
     if not os.path.exists(path):
         raise FileNotFoundError(f"Processed data file not found: {path}")
     d = torch.load(path, map_location="cpu")
@@ -85,7 +85,7 @@ def load_processed_tensors():
 # ================================================================
 def train():
     ensure_dirs()
-    print("Loading processed data...")
+    print("Loading processed data (v4 features)...")
     X, y = load_processed_tensors()
     n_samples, n_features = X.shape
     print(f"Loaded {n_samples} samples with {n_features} features.")
@@ -111,7 +111,7 @@ def train():
     watchlist = [(dtrain, "train"), (dval, "validation")]
     evals_result = {}
 
-    print("Starting XGBoost training...")
+    print("Starting XGBoost training (v4 features)...")
     bst = xgb.train(
         params=xgb_params,
         dtrain=dtrain,
@@ -123,7 +123,7 @@ def train():
     )
 
     # Save model
-    model_path = os.path.join(MODEL_DIR, "xgb_model_2.json")
+    model_path = os.path.join(MODEL_DIR, "xgb_model_v4.json")
     bst.save_model(model_path)
     print(f"Model saved to {model_path}")
 
@@ -140,7 +140,7 @@ def train():
     mre = np.mean(rel_errors)
     mare = np.mean(np.abs(rel_errors))
 
-    print("\n=== Test Set Metrics ===")
+    print("\n=== Test Set Metrics (v4 features) ===")
     print(f"MSE   : {mse:.6e}")
     print(f"RMSE  : {rmse:.6e}")
     print(f"MAE   : {mae:.6e}")
@@ -158,7 +158,7 @@ def train():
     rounds = len(train_rmse)
     epochs = np.arange(1, rounds + 1)
 
-    # Recompute validation MRE & MARE for each epoch
+    # Compute validation MRE & MARE for each epoch
     val_mre_list = []
     val_mare_list = []
     for r in range(1, rounds + 1):
@@ -176,7 +176,7 @@ def train():
     plt.plot(epochs, val_mae, "--", label="Val MAE")
     plt.xlabel("Epoch (Boosting Round)")
     plt.ylabel("Error")
-    plt.title("Training and Validation Error vs Epoch")
+    plt.title("Training and Validation Error vs Epoch (v4 features)")
     plt.legend()
     plt.grid(True)
     metrics_path = os.path.join(FIGURES_DIR, "metrics_vs_epochs.png")
@@ -191,7 +191,7 @@ def train():
     plt.plot(epochs, val_mare_list, "--", label="Val MARE (abs)")
     plt.xlabel("Epoch (Boosting Round)")
     plt.ylabel("Relative Error")
-    plt.title("Validation Relative Errors vs Epoch")
+    plt.title("Validation Relative Errors vs Epoch (v4 features)")
     plt.legend()
     plt.grid(True)
     rel_path = os.path.join(FIGURES_DIR, "relative_error_vs_epochs.png")
@@ -201,7 +201,7 @@ def train():
     print(f"Saved relative error plot: {rel_path}")
 
     # ================================================================
-    # Feature Importance (Sequential, not sorted)
+    # Feature Importance
     # ================================================================
     fmap = bst.get_score(importance_type="weight")
     importances = np.zeros(n_features, dtype=float)
@@ -211,24 +211,21 @@ def train():
             if idx < n_features:
                 importances[idx] = v
 
-    # Normalize if sum > 0
     if importances.sum() > 0:
         importances /= importances.sum()
 
-    # Plot in sequential order (f0, f1, f2, ...)
     plt.figure(figsize=(12, 6))
     plt.bar(range(n_features), importances)
     plt.xticks(range(n_features), [f"f{i}" for i in range(n_features)], rotation=90)
-    plt.xlabel("Layer / Feature Index")
+    plt.xlabel("Feature Index (Sequential)")
     plt.ylabel("Normalized Importance")
-    plt.title("Feature Importance by Layer (Sequential Order)")
+    plt.title("Feature Importance (v4 features)")
     plt.tight_layout()
     fi_path = os.path.join(FIGURES_DIR, "feature_importance.png")
     plt.savefig(fi_path, dpi=150)
     plt.close()
     print(f"Saved feature importance plot: {fi_path}")
 
-    # Optional: print top features
     print("\nFeature Importances (Sequential):")
     for i in range(n_features):
         print(f" f{i}: {importances[i]:.4f}")
@@ -253,4 +250,4 @@ def train():
 # ================================================================
 if __name__ == "__main__":
     results = train()
-    print("\nTraining complete.")
+    print("\nTraining complete (v4 features).")

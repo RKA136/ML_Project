@@ -1,8 +1,32 @@
+#!/usr/bin/env python3
+"""
+This script verifies the integrity and correctness of preprocessed calorimeter
+data saved in PyTorch tensor format by comparing manually computed features from
+the raw HDF5 file with those stored in the processed dataset.
+
+Workflow:
+1. Load configuration parameters from `config.json` to locate the dataset.
+2. Load preprocessed tensors (`processed_data_large.pt`) and print their structure.
+3. Extract feature (`X`) and target (`y`) tensors and display their dimensions.
+4. Reconstruct a single event manually from the raw `.h5` data file using the
+   `load_h5` function from `Model_Training.Preprocessing_v1`.
+5. Compute by hand key calorimetric quantities:
+      - E_sum: total deposited energy
+      - E_max: maximum single-hit energy
+      - x_cog, y_cog, z_cog: energy-weighted center of gravity
+      - r_std, z_std: RMS spread in radial and longitudinal directions
+      - r90: radial distance containing 90% of total energy
+      - E_layer_frac: per-layer energy fraction
+6. Concatenate these quantities into a feature vector and compare with the
+   corresponding GPU-preprocessed tensor from `X_tensor` for the same event.
+7. Print per-feature relative differences to confirm preprocessing consistency.
+"""
+
 import h5py
 import numpy as np
 import torch
 import time
-from Preprocessing import load_h5 
+from Model_Training.Preprocessing_v1 import load_h5 
 import os, json
 
 with open("config.json", "r") as f:
@@ -13,7 +37,6 @@ filename = "hgcal_electron_data_large.h5"  # raw input file
 preprocessed_file = "processed_data_large.pt"  # where tensors were saved
 
 processed_filepath = os.path.join(data_dir, preprocessed_file)
-
 
 print(f"Loading preprocessed tensors from {preprocessed_file}...")
 
