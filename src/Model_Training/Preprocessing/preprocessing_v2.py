@@ -1,3 +1,56 @@
+#!/usr/bin/env python3
+"""
+preprocessing_v2.py
+-----------------------------------
+This script performs **fully vectorized CPU-based feature extraction** from large
+HDF5 calorimeter datasets (e.g., CMS HGCAL simulation data) and saves the processed
+data in PyTorch tensor format for subsequent machine learning workflows.
+
+Overview:
+---------
+1. **Weighted Moment and Cumulant Computation**
+   - Computes event-wise statistical moments (mean, skewness, kurtosis, etc.)
+     using hit-level energy weighting.
+   - Supports cumulant orders up to 5 for both radial (r) and longitudinal (z) hit distributions.
+
+2. **Layer Energy Fractions**
+   - Calculates per-layer total deposited energy and normalizes it to obtain
+     fractional energy deposition per calorimeter layer.
+
+3. **Vectorized Event Processing**
+   - Processes all hits and events using batched NumPy operations.
+   - Avoids event-by-event loops wherever possible, ensuring scalability to large datasets.
+
+4. **Feature Set Generated per Event**
+   - Layer-wise energy fractions (n_layers)
+   - Radial cumulants: r_cog, r_k3, r_k4, r_k5
+   - Longitudinal cumulants: z_cog, z_k3, z_k4, z_k5
+
+   Total number of features per event:
+       n_layers + 8
+
+5. **Batch-wise Streaming**
+   - Uses `batch_size` parameter to control memory usage.
+   - Efficiently constructs padded hit arrays for vectorized cumulant computation.
+
+6. **Data Output**
+   - Saves results in a `.pt` PyTorch file containing:
+       {
+         "data": torch.Tensor(features),
+         "targets": torch.Tensor(true_energy)
+       }
+
+Usage Example:
+--------------
+    python compute_features_vectorized.py
+
+Configuration:
+--------------
+- Reads input and output directories from `config.json`.
+- Input HDF5:   hgcal_electron_data_large.h5
+- Output PyTorch: hgcal_electron_data_large_processed.pt
+"""
+
 import json
 import os
 import h5py
@@ -11,9 +64,14 @@ from tqdm import tqdm
 # -----------------------------
 def weighted_cumulants(values, weights, order=3):
     """
-    values: 2D array (n_events x n_hits_per_event)
-    weights: 2D array (same shape as values)
-    returns: 1D array (n_events,)
+    Compute weighted cumulants (skewness, kurtosis, higher orders) for each event.
+
+    Args:
+        values: 2D NumPy array (n_events × n_hits_per_event)
+        weights: 2D NumPy array (same shape as values)
+        order: int, cumulant order (3, 4, or 5)
+    Returns:
+        1D NumPy array of cumulant values per event
     """
     weights_sum = np.sum(weights, axis=1)
     mean = np.sum(weights * values, axis=1) / weights_sum
@@ -23,11 +81,11 @@ def weighted_cumulants(values, weights, order=3):
         return np.sum(weights * centered**3, axis=1) / weights_sum
     elif order == 4:
         var = np.sum(weights * centered**2, axis=1) / weights_sum
-        return np.sum(weights * centered**4, axis=1) / weights_sum - 3*var**2
+        return np.sum(weights * centered**4, axis=1) / weights_sum - 3 * var**2
     elif order == 5:
         var = np.sum(weights * centered**2, axis=1) / weights_sum
         skew = np.sum(weights * centered**3, axis=1) / weights_sum
-        return np.sum(weights * centered**5, axis=1) / weights_sum - 10*skew*var
+        return np.sum(weights * centered**5, axis=1) / weights_sum - 10 * skew * var
     else:
         raise ValueError("Order must be 3, 4, or 5")
 
@@ -93,7 +151,7 @@ def compute_and_save_features_vectorized(h5_path, output_path, n_layers=28, batc
         offsets = np.cumsum(np.insert(nhits_batch, 0, 0))
         for i in range(n_events_batch):
             start = offsets[i]
-            end = offsets[i+1]
+            end = offsets[i + 1]
             n = end - start
             r_padded[i, :n] = r_batch_flat[start:end]
             z_padded[i, :n] = z_batch_flat[start:end]

@@ -1,13 +1,27 @@
+#!/usr/bin/env python3
 """
-compare_models.py
+Comparison_XGB.py
 -----------------------------------
-Compare two trained XGBoost models:
+This script performs a quantitative comparison among three trained XGBoost models
+that predict calorimeter energy reconstruction targets using different strategies.
 
- - Model_2: predicts direct energy (E_pred_1)
- - Model_3: predicts coefficient (%) to reconstruct E_pred_2 = (coef / 100) * E_true
+Model descriptions:
+ - Model_2: Directly predicts the reconstructed energy (E_pred_1).
+ - Model_3: Predicts a multiplicative coefficient (E_pred_2 = coef * E_true).
+ - Model_4: Predicts the natural logarithm of (1 + coefficient),
+             then reconstructs E_pred_3 = (exp(ln_coef) - 1) * E_true.
 
-Generates a summary table for the first N samples:
-E_true | E_pred_1 | Error_1 | E_pred_2 | Error_2 | MSE_1 | MSE_2
+Key steps:
+1. Load preprocessed features (X) and true energies (y_true) from a .pt dataset file.
+2. Load the three XGBoost models from the specified model directory.
+3. Generate predictions for each model using a common DMatrix representation.
+4. Compute reconstructed energies (E_pred_1, E_pred_2, E_pred_3) and their absolute errors.
+5. Evaluate and print mean squared error (MSE) for each model.
+6. Generate a Pandas DataFrame summarizing E_true, predictions, and errors.
+7. Save a detailed comparison table to `model/model_comparison_with_errors.csv`.
+
+This facilitates direct benchmarking between regression-based, coefficient-based,
+and logarithmic-coefficient-based XGBoost approaches for energy prediction accuracy.
 """
 
 import os
@@ -80,7 +94,7 @@ def compare_models():
     print("Generating predictions...")
     preds_1 = bst1.predict(dX)             # direct energy model
     coef_pred_2 = bst2.predict(dX)         # coefficient (%)
-    ln_coef_pred_3 = bst3.predict(dX)         # ln of coefficient
+    ln_coef_pred_3 = bst3.predict(dX)      # ln of coefficient
     # Reconstruct energies
     E_pred_1 = preds_1
     E_pred_2 = (coef_pred_2) * y_sel

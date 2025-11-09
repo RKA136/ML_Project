@@ -1,3 +1,32 @@
+#!/usr/bin/env python3
+"""
+Feature_plotter.py
+-----------------------------------
+This script visualizes the statistical distribution of calorimeter features
+stored in a preprocessed PyTorch `.pt` dataset. It produces two sets of plots:
+
+1. **Histograms of the first five global features**  
+   (e.g., total energy, max energy, spatial spreads, etc.)
+   - Shows their frequency distributions across all events.
+
+2. **Scatter plot with error bars for per-layer energy fractions**  
+   - Displays the mean and standard deviation of normalized energy
+     deposited in each calorimeter layer.
+
+Functionality:
+- Automatically loads data and figure paths from `config.json`.
+- Supports custom feature names for labeled visualization.
+- Optionally saves figures into the directory specified by `figures_dir`.
+
+Intended Use:
+- For exploratory data analysis (EDA) of processed calorimeter datasets.
+- Helps identify scaling, distribution characteristics, and outliers in features.
+
+Generated Figures:
+- `histograms_first5.png` — Distribution of first 5 features.
+- `layer_fraction_scatter.png` — Mean ± std of layer energy fractions.
+"""
+
 import torch
 import numpy as np
 import matplotlib.pyplot as plt

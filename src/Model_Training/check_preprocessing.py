@@ -25,9 +25,19 @@ Workflow:
 import h5py
 import numpy as np
 import torch
-import time
-from Model_Training.Preprocessing_v1 import load_h5 
+import time 
 import os, json
+
+def load_h5(filename):
+    """Lazy-load HDF5 dataset (returns file handle instead of full arrays)."""
+    with open("config.json", "r") as f:
+        config = json.load(f)
+        data_dir = config["data_dir"]
+    filepath = os.path.join(data_dir, filename)
+
+    # Return file handle (caller must close)
+    f = h5py.File(filepath, "r")
+    return f  # not reading into memory
 
 with open("config.json", "r") as f:
     config = json.load(f)

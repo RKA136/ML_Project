@@ -1,3 +1,29 @@
+#!/usr/bin/env python3
+"""
+DNN_training.py
+-----------------------------------
+This script trains a deep neural network (DNN) regressor in PyTorch to predict
+calorimeter energy values from preprocessed feature tensors. It implements a
+complete workflow from data loading to model evaluation, including normalization,
+training with early stopping, and metric computation.
+
+Pipeline Overview:
+1. Load preprocessed feature and target tensors from `processed_data_0001.pt`.
+2. Apply feature normalization using `StandardScaler` for stable optimization.
+3. Split dataset into training and validation subsets (80%-20%).
+4. Define a fully connected DNN architecture:
+       Input → 128 → 64 → 32 → 1 (with ReLU activations)
+5. Train the network using AdamW optimizer and MSE loss with early stopping.
+6. Save the model when validation MSE improves, up to a patience threshold.
+7. Reload the best checkpoint and evaluate performance using MAE, RMSE, and R².
+
+The trained model is saved to:
+   {models_dir}/DNN_model.pt
+
+This framework provides a clean baseline for comparing deep learning regression
+performance against traditional models (e.g., XGBoost).
+"""
+
 # =============================
 # DNN Regression Training (PyTorch)
 # =============================
@@ -116,7 +142,7 @@ for epoch in range(n_epochs):
 # -----------------------------
 # Load Best Model and Evaluate
 # -----------------------------
-model.load_state_dict(torch.load(os.path.join(model_dir, "DNN_model.pt")))  # <-- corrected
+model.load_state_dict(torch.load(os.path.join(model_dir, "DNN_model.pt")))
 model.eval()
 
 X_val_full = X_scaled[n_train:].to(device)

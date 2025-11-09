@@ -2,14 +2,62 @@
 """
 XGB_train_v2.py
 -----------------------------------
-Train an XGBoost regressor on processed_data.pt
-and evaluate with MSE, RMSE, MAE, and relative error metrics.
+Train an **XGBoost regressor** on calorimeter feature data stored in `processed_data.pt`,
+evaluate model performance using multiple error metrics, and visualize training evolution.
 
-Generates:
- - figures/metrics_vs_epochs.png
- - figures/relative_error_vs_epochs.png
- - figures/feature_importance.png
- - model/xgb_model.json
+Pipeline Overview:
+------------------
+1. **Configuration and Setup**
+   - Flexible configuration through constants and `config.json`.
+   - Supports GPU acceleration, early stopping, and optional feature scaling.
+
+2. **Data Loading**
+   - Loads preprocessed calorimeter event data from `processed_data_large_v3.pt`.
+   - Data format: `{"X": features, "y": true_energies}` stored as PyTorch tensors.
+
+3. **Dataset Partitioning**
+   - Splits data into training, validation, and test subsets:
+        80% training
+        10% validation
+        10% testing
+   - Ensures reproducibility with fixed random seed.
+
+4. **XGBoost Training**
+   - Uses regression objective (`reg:squarederror`) with RMSE and MAE metrics.
+   - Tracks performance on training and validation sets across boosting rounds.
+   - Early stopping halts training when validation performance stagnates.
+
+5. **Performance Metrics**
+   - MSE: Mean Squared Error
+   - RMSE: Root Mean Squared Error
+   - MAE: Mean Absolute Error
+   - MRE: Mean Relative Error
+   - MARE: Mean Absolute Relative Error
+
+6. **Visualization Outputs**
+   - `metrics_vs_epochs.png` → RMSE and MAE vs epoch
+   - `relative_error_vs_epochs.png` → validation MRE and MARE over epochs
+   - `feature_importance.png` → normalized feature importance (layer-wise)
+
+7. **Model and Output Artifacts**
+   - Saves trained model as `model/xgb_model_2.json`
+   - Saves diagnostic plots in `figures/`
+   - Prints key performance indicators and ranked feature importances
+
+Use Case:
+---------
+Optimized for calorimeter energy reconstruction studies where layer-wise and
+aggregate features are used for regression-based prediction of true shower energy.
+
+Example Run:
+------------
+    python XGB_train_v2.py
+
+Output:
+--------
+- Model file: `model/xgb_model_2.json`
+- Plots: `figures/metrics_vs_epochs.png`, `figures/relative_error_vs_epochs.png`, `figures/feature_importance.png`
+- Console metrics summary
 """
 
 import os
@@ -211,11 +259,9 @@ def train():
             if idx < n_features:
                 importances[idx] = v
 
-    # Normalize if sum > 0
     if importances.sum() > 0:
         importances /= importances.sum()
 
-    # Plot in sequential order (f0, f1, f2, ...)
     plt.figure(figsize=(12, 6))
     plt.bar(range(n_features), importances)
     plt.xticks(range(n_features), [f"f{i}" for i in range(n_features)], rotation=90)
@@ -228,7 +274,6 @@ def train():
     plt.close()
     print(f"Saved feature importance plot: {fi_path}")
 
-    # Optional: print top features
     print("\nFeature Importances (Sequential):")
     for i in range(n_features):
         print(f" f{i}: {importances[i]:.4f}")

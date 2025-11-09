@@ -1,3 +1,51 @@
+#!/usr/bin/env python3
+"""
+preprocessing_v1.py
+-----------------------------------
+This script performs fully GPU-accelerated feature extraction from calorimeter
+HDF5 event data and saves the resulting feature and target tensors in PyTorch format.
+
+Overview:
+1. **Lazy HDF5 Loading**
+   - Uses the `load_h5()` helper to open large `.h5` files without loading them
+     entirely into memory.
+   - Reads only the required slices of hit data per batch.
+
+2. **GPU-Accelerated Feature Computation**
+   - Uses CuPy arrays for massive speedup in batch-level computation.
+   - Features are computed per event across multiple detector layers.
+
+3. **Computed Features**
+   For each calorimeter event, the following physical features are calculated:
+   - `E_sum`: total deposited energy.
+   - `E_max`: maximum single-hit energy.
+   - `r_std`: RMS spread in the radial direction.
+   - `z_std`: RMS spread along the detector depth (longitudinal axis).
+   - `r90`: radial distance containing 90% of total event energy.
+   - `E_layer_frac`: normalized energy fraction deposited per layer.
+
+4. **Batch-wise Processing**
+   - Processes events in batches (default: 20,000) to avoid GPU memory overflow.
+   - Uses cumulative indexing to correctly associate hits with events.
+
+5. **Data Output**
+   - Combines all batches into a single NumPy array, converts to Torch tensors.
+   - Saves final tensors to `processed_data_v1.pt` in the directory specified
+     under `"data_dir"` in `config.json`.
+
+6. **Advantages**
+   - Enables high-performance feature extraction for very large datasets.
+   - Minimizes CPU–GPU data transfer overhead.
+   - Avoids out-of-memory errors through controlled batching.
+
+Output:
+- `processed_data.pt`: a PyTorch dictionary with tensors:
+      {"X": feature_tensor, "y": target_tensor}
+
+Example Use:
+    X_tensor, y_tensor = prepare_event_feature_tensors_gpu("hgcal_electron_data_large.h5")
+"""
+
 import numpy as np
 import cupy as cp
 import torch
@@ -134,6 +182,6 @@ def prepare_event_feature_tensors_gpu(filename, batch_size=20000):
     with open("config.json", "r") as f:
         config = json.load(f)
         data_dir = config["data_dir"]
-    torch.save({"X": X_tensor, "y": y_tensor}, os.path.join(data_dir, "processed_data.pt"))
+    torch.save({"X": X_tensor, "y": y_tensor}, os.path.join(data_dir, "processed_data_v1.pt"))
     print(f"Generated {X.shape[0]} events, {X.shape[1]} features each.")
     return X_tensor, y_tensor

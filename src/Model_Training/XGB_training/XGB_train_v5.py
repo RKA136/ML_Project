@@ -1,23 +1,35 @@
 #!/usr/bin/env python3
 """
-XGB_train_v2.py
+XGB_train_v5.py
 -----------------------------------
-Train an XGBoost regressor to predict:
-    y_target = 100 × (E_true / Σ(layer_energies))
+Train an XGBoost regressor on **v5-processed calorimeter features**
+to predict the event-level energy target.
 
-The model learns a correction factor (in %) between the true energy
-and the total recorded energy in all 28 layers.
+This script operates on:
+    processed_data_0001_v4.pt  (v5-compatible processed dataset)
 
-It also reconstructs E_pred = (pred / 100) × Σ(layer_energies)
-for physical comparison with E_true.
+Purpose:
+---------
+Version 5 streamlines the regression training framework while retaining
+the feature engineering pipeline from version 4. This model establishes
+a standardized training-evaluation workflow for calorimetric regression
+using XGBoost, emphasizing numerical stability, interpretability, and
+layer-wise feature analysis.
 
-Evaluates with MSE, RMSE, MAE, and relative error metrics.
+Outputs:
+---------
+- figures_v5/metrics_vs_epochs.png        : RMSE & MAE vs boosting rounds
+- figures_v5/relative_error_vs_epochs.png : MRE & MARE evolution
+- figures_v5/feature_importance.png       : Normalized XGBoost feature importances
+- model_v5/xgb_model_v5.json              : Trained model checkpoint
 
-Generates:
- - figures/metrics_vs_epochs.png
- - figures/relative_error_vs_epochs.png
- - figures/feature_importance.png
- - model/xgb_model.json
+Configuration Parameters:
+-------------------------
+NUM_ROUNDS             : Maximum boosting iterations (default = 200)
+EARLY_STOPPING_ROUNDS  : Validation patience for early stopping (default = 20)
+SCALE_FEATURES         : Apply feature normalization (default = False)
+USE_GPU                : Enable GPU acceleration (default = False)
+MODEL_DIR / FIGURES_DIR: Output directories for model and analysis plots
 """
 
 import os
@@ -41,7 +53,7 @@ RANDOM_STATE = 42
 USE_GPU = False
 SCALE_FEATURES = False
 MODEL_DIR = "model"
-FIGURES_DIR = "figures"
+FIGURES_DIR = "figures_v5"
 VERBOSE_EVAL = 10
 
 xgb_params = {
@@ -75,28 +87,17 @@ def mean_absolute_relative_error(preds, dtrain):
 
 
 def load_processed_tensors():
-    """
-    Load processed features and redefine target as:
-        y_target = 100 * (E_true / Σ(layer_energies))
-    """
+    """Load processed features and labels from processed_data_0001_v4.pt (v5 input)"""
     with open("config.json", "r") as f:
         config = json.load(f)
     data_dir = config.get("data_dir", ".")
-    path = os.path.join(data_dir, "processed_data_large_v3.pt")
+    path = os.path.join(data_dir, "processed_data_0001_v4.pt")
     if not os.path.exists(path):
         raise FileNotFoundError(f"Processed data file not found: {path}")
-    
-    d = torch.load(path, map_location="cpu")
+    d = torch.load(path, map_location="cpu", weights_only=True)
     X = d["X"].numpy().astype(np.float32)
-    y_true = d["y"].numpy().reshape(-1).astype(np.float32)
-
-    # --- compute sum of 28 layer energies for each event ---
-    layer_sum = np.sum(X[:, :28], axis=1) + 1e-8 # adjust slice if needed
-    # --- redefine target ---
-    y = np.log(((y_true *100)/ layer_sum)+1)
-
-    print(f"Redefined target as E_target = 100 × (E_true / Σ(layer_energies)), shape = {y.shape}")
-    return X, y, y_true, layer_sum
+    y = d["y"].numpy().reshape(-1).astype(np.float32)
+    return X, y
 
 
 # ================================================================
@@ -104,22 +105,19 @@ def load_processed_tensors():
 # ================================================================
 def train():
     ensure_dirs()
-    print("Loading processed data...")
-    X, y, y_true, layer_sum = load_processed_tensors()
+    print("Loading processed data (v5 features)...")
+    X, y = load_processed_tensors()
     n_samples, n_features = X.shape
     print(f"Loaded {n_samples} samples with {n_features} features.")
 
     # Split dataset
-    X_temp, X_test, y_temp, y_test, ytrue_temp, ytrue_test, lsum_temp, lsum_test = train_test_split(
-        X, y, y_true, layer_sum, test_size=TEST_SIZE, random_state=RANDOM_STATE
-    )
+    X_temp, X_test, y_temp, y_test = train_test_split(X, y, test_size=TEST_SIZE, random_state=RANDOM_STATE)
     val_frac = VAL_SIZE / (1.0 - TEST_SIZE)
-    X_train, X_val, y_train, y_val, ytrue_train, ytrue_val, lsum_train, lsum_val = train_test_split(
-        X_temp, y_temp, ytrue_temp, lsum_temp, test_size=val_frac, random_state=RANDOM_STATE
-    )
+    X_train, X_val, y_train, y_val = train_test_split(X_temp, y_temp, test_size=val_frac, random_state=RANDOM_STATE)
     print(f"Train: {len(X_train)} | Val: {len(X_val)} | Test: {len(X_test)}")
 
     # Optional scaling
+    scaler = None
     if SCALE_FEATURES:
         scaler = StandardScaler()
         X_train = scaler.fit_transform(X_train)
@@ -133,7 +131,7 @@ def train():
     watchlist = [(dtrain, "train"), (dval, "validation")]
     evals_result = {}
 
-    print("Starting XGBoost training...")
+    print("Starting XGBoost training (v5 features)...")
     bst = xgb.train(
         params=xgb_params,
         dtrain=dtrain,
@@ -145,28 +143,24 @@ def train():
     )
 
     # Save model
-    model_path = os.path.join(MODEL_DIR, "xgb_model_4.json")
+    model_path = os.path.join(MODEL_DIR, "xgb_model_5.json")
     bst.save_model(model_path)
     print(f"Model saved to {model_path}")
 
-    # ================================================================
-    # Predictions and reconstruction
-    # ================================================================
-    preds_test_factor = bst.predict(dtest)
+    # Predictions on test data
+    preds_test = bst.predict(dtest)
     eps = 1e-8
-    denom = np.where(np.abs(lsum_test) < eps, eps, lsum_test)
-    E_pred = (preds_test_factor / 100.0) * denom  # reconstructed energy
-    E_true = ytrue_test
+    denom = np.where(np.abs(y_test) < eps, eps, y_test)
+    rel_errors = (preds_test - y_test) / denom
 
     # Compute metrics
-    mse = mean_squared_error(E_true, E_pred)
+    mse = mean_squared_error(y_test, preds_test)
     rmse = np.sqrt(mse)
-    mae = mean_absolute_error(E_true, E_pred)
-    rel_errors = (E_pred - E_true) / np.where(np.abs(E_true) < eps, eps, E_true)
+    mae = mean_absolute_error(y_test, preds_test)
     mre = np.mean(rel_errors)
     mare = np.mean(np.abs(rel_errors))
 
-    print("\n=== Test Set Metrics (on reconstructed E_pred) ===")
+    print("\n=== Test Set Metrics (v5 features) ===")
     print(f"MSE   : {mse:.6e}")
     print(f"RMSE  : {rmse:.6e}")
     print(f"MAE   : {mae:.6e}")
@@ -184,25 +178,25 @@ def train():
     rounds = len(train_rmse)
     epochs = np.arange(1, rounds + 1)
 
-    # Recompute validation MRE & MARE for each epoch
+    # Compute validation MRE & MARE for each epoch
     val_mre_list = []
     val_mare_list = []
     for r in range(1, rounds + 1):
-        preds_factor_r = bst.predict(dval, iteration_range=(0, r))
-        E_pred_r = (preds_factor_r / 100.0) * np.where(np.abs(lsum_val) < eps, eps, lsum_val)
-        rel = (E_pred_r - ytrue_val) / np.where(np.abs(ytrue_val) < eps, eps, ytrue_val)
+        preds_r = bst.predict(dval, iteration_range=(0, r))
+        denom = np.where(np.abs(y_val) < eps, eps, y_val)
+        rel = (preds_r - y_val) / denom
         val_mre_list.append(np.mean(rel))
         val_mare_list.append(np.mean(np.abs(rel)))
 
     # ---- RMSE & MAE ----
     plt.figure(figsize=(10, 6))
-    plt.plot(epochs, train_rmse, label="Train RMSE (factor)")
-    plt.plot(epochs, val_rmse, label="Val RMSE (factor)")
-    plt.plot(epochs, train_mae, "--", label="Train MAE (factor)")
-    plt.plot(epochs, val_mae, "--", label="Val MAE (factor)")
+    plt.plot(epochs, train_rmse, label="Train RMSE")
+    plt.plot(epochs, val_rmse, label="Val RMSE")
+    plt.plot(epochs, train_mae, "--", label="Train MAE")
+    plt.plot(epochs, val_mae, "--", label="Val MAE")
     plt.xlabel("Epoch (Boosting Round)")
     plt.ylabel("Error")
-    plt.title("Training and Validation Error vs Epoch")
+    plt.title("Training and Validation Error vs Epoch (v5 features)")
     plt.legend()
     plt.grid(True)
     metrics_path = os.path.join(FIGURES_DIR, "metrics_vs_epochs.png")
@@ -216,8 +210,8 @@ def train():
     plt.plot(epochs, val_mre_list, label="Val MRE (signed)")
     plt.plot(epochs, val_mare_list, "--", label="Val MARE (abs)")
     plt.xlabel("Epoch (Boosting Round)")
-    plt.ylabel("Relative Error (Reconstructed Energy)")
-    plt.title("Validation Relative Errors vs Epoch")
+    plt.ylabel("Relative Error")
+    plt.title("Validation Relative Errors vs Epoch (v5 features)")
     plt.legend()
     plt.grid(True)
     rel_path = os.path.join(FIGURES_DIR, "relative_error_vs_epochs.png")
@@ -227,7 +221,7 @@ def train():
     print(f"Saved relative error plot: {rel_path}")
 
     # ================================================================
-    # Feature Importance (Sequential Order)
+    # Feature Importance
     # ================================================================
     fmap = bst.get_score(importance_type="weight")
     importances = np.zeros(n_features, dtype=float)
@@ -243,9 +237,9 @@ def train():
     plt.figure(figsize=(12, 6))
     plt.bar(range(n_features), importances)
     plt.xticks(range(n_features), [f"f{i}" for i in range(n_features)], rotation=90)
-    plt.xlabel("Layer / Feature Index")
+    plt.xlabel("Feature Index (Sequential)")
     plt.ylabel("Normalized Importance")
-    plt.title("Feature Importance by Layer (Sequential Order)")
+    plt.title("Feature Importance (v5 features)")
     plt.tight_layout()
     fi_path = os.path.join(FIGURES_DIR, "feature_importance.png")
     plt.savefig(fi_path, dpi=150)
@@ -276,4 +270,4 @@ def train():
 # ================================================================
 if __name__ == "__main__":
     results = train()
-    print("\nTraining complete.")
+    print("\nTraining complete (v5 features).")
