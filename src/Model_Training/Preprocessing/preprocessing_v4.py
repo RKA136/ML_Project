@@ -215,9 +215,9 @@ def process_batches(filename, batch_size=20000, use_cupy=False, out_filename="fe
             feature_mmap.flush()
 
         # Save target values and final torch tensor
-        true_energy = f["target"][:n_events].astype(np.float32)
+        true_energy = f["true_energy"][:n_events].astype(np.float32)
 
-    out_torch = os.path.join(data_dir, "processed_data.pt")
+    out_torch = os.path.join(data_dir, "processed_data_v4.pt")
     torch.save({"X": torch.from_numpy(np.asarray(feature_mmap)),
                 "y": torch.from_numpy(true_energy.reshape(-1, 1))}, out_torch)
 
@@ -229,5 +229,5 @@ def process_batches(filename, batch_size=20000, use_cupy=False, out_filename="fe
 if __name__ == "__main__":
     cfg = load_config()
     data_dir = cfg["data_dir"]
-    filename = "hgcal_electron_data_0001.h5"
+    filename = "hgcal_electron_data_large.h5"
     process_batches(filename, batch_size=5000, use_cupy=False, out_filename="features.npy")
