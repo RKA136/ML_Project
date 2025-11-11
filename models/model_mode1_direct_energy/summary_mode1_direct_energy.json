@@ -1,0 +1,16 @@
+{
+  "mode": "mode1",
+  "target_mode": "direct_energy",
+  "samples": 3232809,
+  "features": 32,
+  "mse": 9.716140747070312,
+  "rmse": 3.1170724641994307,
+  "mae": 2.2985546588897705,
+  "mre": 0.0007439973996952176,
+  "mare": 0.017465954646468163,
+  "model_path": "E:/GitHub/ML_Project/models\\model_mode1_direct_energy\\xgb_model_mode1_direct_energy.json",
+  "metrics_plot": "E:/GitHub/ML_Project/figures\\figures_mode1_direct_energy\\mode1_direct_energy_metrics_vs_epochs.png",
+  "feature_importance_json": "E:/GitHub/ML_Project/models\\model_mode1_direct_energy\\feature_importance_summary_mode1_direct_energy.json",
+  "figures_dir": "E:/GitHub/ML_Project/figures\\figures_mode1_direct_energy",
+  "models_dir": "E:/GitHub/ML_Project/models\\model_mode1_direct_energy"
+}

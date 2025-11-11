@@ -1,0 +1,16 @@
+{
+  "mode": "mode1",
+  "target_mode": "scaled_ratio",
+  "samples": 3232809,
+  "features": 32,
+  "mse": 97161.2265625,
+  "rmse": 311.7069562305275,
+  "mae": 229.87254333496094,
+  "mre": 0.0007079067872837186,
+  "mare": 0.017444448545575142,
+  "model_path": "E:/GitHub/ML_Project/models\\model_mode1_scaled_ratio\\xgb_model_mode1_scaled_ratio.json",
+  "metrics_plot": "E:/GitHub/ML_Project/figures\\figures_mode1_scaled_ratio\\mode1_scaled_ratio_metrics_vs_epochs.png",
+  "feature_importance_json": "E:/GitHub/ML_Project/models\\model_mode1_scaled_ratio\\feature_importance_summary_mode1_scaled_ratio.json",
+  "figures_dir": "E:/GitHub/ML_Project/figures\\figures_mode1_scaled_ratio",
+  "models_dir": "E:/GitHub/ML_Project/models\\model_mode1_scaled_ratio"
+}
