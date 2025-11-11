@@ -25,6 +25,7 @@ Outputs:
 import numpy as np
 import h5py
 import matplotlib.pyplot as plt
+plt.style.use("ggplot")
 import json
 import os
 from scipy.stats import norm
@@ -41,7 +42,7 @@ figures_dir = config["figures_dir"]
 input_file = os.path.join(data_dir, "hgcal_electron_data_large.h5")
 
 n_bins = 10  # number of true energy bins
-save_histograms = True  # whether to save per-bin Gaussian fit plots
+save_histograms = False  # whether to save per-bin Gaussian fit plots
 
 # ------------------------------------------------------------
 # Load raw data
@@ -110,10 +111,9 @@ sigma_over_mean = np.array(sigma_over_mean)
 # Plot Mean Response
 # ------------------------------------------------------------
 plt.figure(figsize=(7, 6))
-plt.plot(mean_true, mean_measured, 'o-', lw=2, label="Measured Response")
-plt.plot(mean_true, mean_true, 'k--', label="Ideal Response (y=x)")
+plt.plot(mean_true, mean_measured, 'o-', color="black", lw=2, label="Measured Response")
 plt.xlabel("Mean True Energy (GeV)", fontsize=13)
-plt.ylabel("Mean Measured Energy (GeV)", fontsize=13)
+plt.ylabel("Mean Measured Energy (MIP)", fontsize=13)
 plt.title(f"Calorimeter Energy Response ({n_bins} bins)", fontsize=14)
 plt.grid(True, alpha=0.4)
 plt.legend()
@@ -125,7 +125,7 @@ plt.show()
 # Plot Energy Resolution σ_E / ⟨E⟩
 # ------------------------------------------------------------
 plt.figure(figsize=(7, 6))
-plt.plot(mean_true, sigma_over_mean, 'o-', lw=2)
+plt.plot(mean_true, sigma_over_mean, 'o-',color="black", lw=2)
 plt.xlabel("True Energy (GeV)", fontsize=13)
 plt.ylabel("σ_E / ⟨E⟩", fontsize=13)
 plt.title("Calorimeter Energy Resolution", fontsize=14)
