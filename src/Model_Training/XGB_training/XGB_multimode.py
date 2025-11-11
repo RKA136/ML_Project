@@ -1,32 +1,29 @@
 #!/usr/bin/env python3
 """
-XGB_train_multimode_final_v3.py
+XGB_train_multimode.py
 ---------------------------------------------------
 Unified XGBoost regression framework for calorimeter datasets.
 
-Supports multiple preprocessing modes:
+Supports preprocessing modes:
     mode1 → GPU-based (fractional + global)
     mode2 → CPU cumulant features
     mode3 → per-layer energy sums
     mode4 → layerwise [E_sum, E1/E7, E7/E19]
 
-Core Capabilities:
-------------------
-1. Loads dataset tensors from `.pt` files (PyTorch format).
-2. Splits data into Train / Validation / Test sets.
-3. Provides 3 target definition options:
-       (1) Direct prediction of true energy
-       (2) 100 × (E_true / Σ first 28 fractional energies)
-       (3) log(100 × (E_true / Σ first 28 fractional energies) + 1)
-4. Trains an XGBoost regressor with early stopping.
-5. Generates metrics, learning curves, and feature-importance plots.
+Target modes:
+    (1) Direct energy prediction
+    (2) 100 × (E_true / Σ first 28 fractional energies)
+    (3) log(100 × (E_true / Σ first 28 fractional energies) + 1)
 
-Outputs:
----------
-- model/xgb_model_<mode>.json
-- figures_multimode/<mode>_metrics_vs_epochs.png
-- figures_multimode/<mode>_feature_importance.png
-- model/summary_<mode>.json
+Output folder structure:
+    models/model_<mode>_<target>/
+        ├── xgb_model_<mode>_<target>.json
+        ├── summary_<mode>_<target>.json
+        ├── feature_importance_summary_<mode>_<target>.json
+
+    figures/figures_<mode>_<target>/
+        ├── <mode>_<target>_metrics_vs_epochs.png
+        ├── <mode>_<target>_feature_importance_*.png
 """
 
 import os
@@ -42,43 +39,27 @@ from sklearn.metrics import mean_squared_error, mean_absolute_error
 # Configuration
 # ================================================================
 DATA_MODE = "mode4"          # choose among: mode1, mode2, mode3, mode4
-MANUAL_DATA_PATH = None      # optional override for custom file
+MANUAL_DATA_PATH = None      # optional override
 
-# Split ratios
 TEST_SIZE = 0.10
 VAL_SIZE = 0.10
-
-NUM_ROUNDS = 2000
+NUM_ROUNDS = 1000
 EARLY_STOPPING_ROUNDS = 50
 RANDOM_STATE = 42
 USE_GPU = True
-MODEL_DIR = "model"
-FIGURES_DIR = "figures_multimode"
 VERBOSE_EVAL = 25
 
+
 # ================================================================
-# Dataset Map
+# Dataset Loader
 # ================================================================
 def load_dataset(data_mode):
-    # -------------------------------------------------------------------
-    # Load configuration from config.json
-    # -------------------------------------------------------------------
     with open("config.json", "r") as f:
         config = json.load(f)
     data_dir = config.get("data_dir", ".")
     figures_dir = config.get("figures_dir", "figures")
-    models_dir = config.get("models_dir", "model")
+    models_dir = config.get("models_dir", "models")
 
-    # Update global paths dynamically
-    global MODEL_DIR, FIGURES_DIR
-    MODEL_DIR = models_dir
-    FIGURES_DIR = figures_dir
-    os.makedirs(MODEL_DIR, exist_ok=True)
-    os.makedirs(FIGURES_DIR, exist_ok=True)
-
-    # -------------------------------------------------------------------
-    # Define mode → dataset mapping
-    # -------------------------------------------------------------------
     dataset_map = {
         "mode1": {
             "path": "processed_data_large_v1.pt",
@@ -102,43 +83,27 @@ def load_dataset(data_mode):
         raise ValueError(f"Unknown DATA_MODE '{data_mode}'. Available: {list(dataset_map.keys())}")
 
     cfg = dataset_map[data_mode]
-
-    # Construct absolute dataset path
-    if MANUAL_DATA_PATH:
-        data_path = MANUAL_DATA_PATH
-    else:
-        data_path = os.path.join(data_dir, cfg["path"])
-
-    # -------------------------------------------------------------------
-    # Validate path
-    # -------------------------------------------------------------------
+    data_path = MANUAL_DATA_PATH or os.path.join(data_dir, cfg["path"])
     abs_path = os.path.abspath(data_path)
+
     print(f"[INFO] Loading dataset for {data_mode}")
     print(f"[INFO] Description: {cfg['description']}")
-    print(f"[INFO] Expected path: {abs_path}")
+    print(f"[INFO] Path: {abs_path}")
 
-    if not os.path.exists(data_path):
+    if not os.path.exists(abs_path):
         raise FileNotFoundError(f"Data file not found at: {abs_path}")
 
-    # -------------------------------------------------------------------
-    # Load tensors
-    # -------------------------------------------------------------------
-    d = torch.load(data_path, map_location="cpu", weights_only=True)
+    d = torch.load(abs_path, map_location="cpu", weights_only=True)
     X = d["X"].numpy().astype(np.float32)
     y = d["y"].numpy().reshape(-1).astype(np.float32)
-    print(f"[INFO] Loaded dataset: {X.shape[0]} samples, {X.shape[1]} features.")
 
-    return X, y, data_mode
+    print(f"[INFO] Loaded dataset: {X.shape[0]} samples, {X.shape[1]} features.")
+    return X, y, data_mode, figures_dir, models_dir
 
 
 # ================================================================
 # Helper Functions
 # ================================================================
-def ensure_dirs():
-    os.makedirs(MODEL_DIR, exist_ok=True)
-    os.makedirs(FIGURES_DIR, exist_ok=True)
-
-
 def compute_metrics(y_true, y_pred):
     eps = 1e-8
     denom = np.where(np.abs(y_true) < eps, eps, y_true)
@@ -155,47 +120,51 @@ def compute_metrics(y_true, y_pred):
 # Training Function
 # ================================================================
 def train():
-    ensure_dirs()
-
-    X, y, tag = load_dataset(DATA_MODE)
+    X, y, tag, FIGURES_ROOT, MODELS_ROOT = load_dataset(DATA_MODE)
     n_samples, n_features = X.shape
     print(f"[INFO] Loaded {n_samples} samples with {n_features} features.")
 
     # ================================================================
-    # Target Definition (Choose ONE)
+    # Target Definition (choose ONE)
     # ================================================================
     # (1) Direct prediction
-    y_target = y
+    # y_target = y
+    # TARGET_MODE_NAME = "direct_energy"
 
     # (2) Scaled ratio
     # y_target = 100.0 * (y / (np.sum(X[:, :28], axis=1) + 1e-8))
+    # TARGET_MODE_NAME = "scaled_ratio"
 
     # (3) Log-scaled ratio
-    # y_target = np.log(100.0 * (y / (np.sum(X[:, :28], axis=1) + 1e-8)) + 1.0)
+    y_target = np.log(100.0 * (y / (np.sum(X[:, :28], axis=1) + 1e-8)) + 1.0)
+    TARGET_MODE_NAME = "log_scaled_ratio"
+
+    print(f"[INFO] Selected target mode: {TARGET_MODE_NAME}")
 
     # ================================================================
-    # Data Splitting (Train / Validation / Test)
+    # Directory Setup
     # ================================================================
-    X_temp, X_test, y_temp, y_test = train_test_split(X, y_target, test_size=TEST_SIZE, random_state=RANDOM_STATE)
+    FIGURES_SUBDIR = os.path.join(FIGURES_ROOT, f"figures_{tag}_{TARGET_MODE_NAME}")
+    MODELS_SUBDIR = os.path.join(MODELS_ROOT, f"model_{tag}_{TARGET_MODE_NAME}")
+    os.makedirs(FIGURES_SUBDIR, exist_ok=True)
+    os.makedirs(MODELS_SUBDIR, exist_ok=True)
+    print(f"[INFO] Figures folder: {FIGURES_SUBDIR}")
+    print(f"[INFO] Models folder : {MODELS_SUBDIR}")
+
+    # ================================================================
+    # Data Splitting
+    # ================================================================
+    X_temp, X_test, y_temp, y_test = train_test_split(X, y_target, test_size=0.10, random_state=RANDOM_STATE)
     val_fraction = VAL_SIZE / (1.0 - TEST_SIZE)
     X_train, X_val, y_train, y_val = train_test_split(X_temp, y_temp, test_size=val_fraction, random_state=RANDOM_STATE)
 
-    print(f"[INFO] Dataset split:")
-    print(f"  Train: {len(X_train)} samples")
-    print(f"  Val  : {len(X_val)} samples")
-    print(f"  Test : {len(X_test)} samples")
+    print(f"[INFO] Train: {len(X_train)}, Val: {len(X_val)}, Test: {len(X_test)}")
 
-    # ================================================================
-    # Prepare DMatrix
-    # ================================================================
     dtrain = xgb.DMatrix(X_train, label=y_train)
     dval = xgb.DMatrix(X_val, label=y_val)
     dtest = xgb.DMatrix(X_test, label=y_test)
 
-    # ================================================================
-    # XGBoost Parameters
-    # ================================================================
-    xgb_params = {
+    params = {
         "objective": "reg:squarederror",
         "eval_metric": ["rmse", "mae"],
         "eta": 0.05,
@@ -206,14 +175,14 @@ def train():
         "verbosity": 1,
     }
     if USE_GPU:
-        xgb_params["tree_method"] = "gpu_hist"
+        params["tree_method"] = "gpu_hist"
 
     watchlist = [(dtrain, "train"), (dval, "validation")]
     evals_result = {}
 
-    print(f"\n[INFO] Starting XGBoost training (mode: {tag})...")
+    print(f"\n[INFO] Starting XGBoost training — {tag} ({TARGET_MODE_NAME})")
     bst = xgb.train(
-        params=xgb_params,
+        params=params,
         dtrain=dtrain,
         num_boost_round=NUM_ROUNDS,
         evals=watchlist,
@@ -223,18 +192,20 @@ def train():
     )
 
     # ================================================================
-    # Model Saving
+    # Model Save Paths
     # ================================================================
-    model_path = os.path.join(MODEL_DIR, f"xgb_model_{tag}.json")
+    model_path = os.path.join(MODELS_SUBDIR, f"xgb_model_{tag}_{TARGET_MODE_NAME}.json")
+    summary_path = os.path.join(MODELS_SUBDIR, f"summary_{tag}_{TARGET_MODE_NAME}.json")
+    importance_json_path = os.path.join(MODELS_SUBDIR, f"feature_importance_summary_{tag}_{TARGET_MODE_NAME}.json")
+
     bst.save_model(model_path)
-    print(f"[INFO] Model saved to {model_path}")
+    print(f"[INFO] Model saved to: {model_path}")
 
     # ================================================================
-    # Evaluation on Test Set
+    # Evaluation
     # ================================================================
     preds = bst.predict(dtest)
     mse, rmse, mae, mre, mare = compute_metrics(y_test, preds)
-
     print("\n=== Test Metrics ===")
     print(f"MSE   : {mse:.6e}")
     print(f"RMSE  : {rmse:.6e}")
@@ -243,7 +214,7 @@ def train():
     print(f"MARE  : {mare:.6e}")
 
     # ================================================================
-    # Plot Learning Curves
+    # Learning Curve Plot
     # ================================================================
     epochs = np.arange(1, len(evals_result["train"]["rmse"]) + 1)
     plt.figure(figsize=(10, 6))
@@ -254,14 +225,16 @@ def train():
     plt.xlabel("Boosting Round")
     plt.ylabel("Error")
     plt.legend()
-    plt.title(f"Training Curves ({tag})")
+    plt.title(f"Training Curves — {tag} ({TARGET_MODE_NAME})")
     plt.grid(True)
+    metrics_path = os.path.join(FIGURES_SUBDIR, f"{tag}_{TARGET_MODE_NAME}_metrics_vs_epochs.png")
     plt.tight_layout()
-    plt.savefig(os.path.join(FIGURES_DIR, f"{tag}_metrics_vs_epochs.png"), dpi=150)
+    plt.savefig(metrics_path, dpi=150)
     plt.close()
+    print(f"[INFO] Saved metrics plot: {metrics_path}")
 
     # ================================================================
-    # Feature Importance (all importance types)
+    # Feature Importances
     # ================================================================
     importance_types = ["weight", "gain", "cover", "total_gain", "total_cover"]
     importance_summary = {}
@@ -269,61 +242,54 @@ def train():
     for imp_type in importance_types:
         fmap = bst.get_score(importance_type=imp_type)
         importances = np.zeros(n_features, dtype=float)
-
-        # Collect importance scores
         for k, v in fmap.items():
             if k.startswith("f"):
                 idx = int(k[1:])
                 if idx < n_features:
                     importances[idx] = v
-
-        # Normalize if not empty
         if np.sum(importances) > 0:
             importances /= np.sum(importances)
-
-        # Store numeric values for later summary
         importance_summary[imp_type] = importances.tolist()
 
-        # Plot
         plt.figure(figsize=(12, 6))
         plt.bar(range(n_features), importances)
         plt.xticks(range(n_features), [f"f{i}" for i in range(n_features)], rotation=90)
         plt.xlabel("Feature Index")
         plt.ylabel("Normalized Importance")
-        plt.title(f"Feature Importance ({imp_type}) — {tag}")
+        plt.title(f"Feature Importance ({imp_type}) — {tag} ({TARGET_MODE_NAME})")
         plt.tight_layout()
-
-        fi_path = os.path.join(FIGURES_DIR, f"{tag}_feature_importance_{imp_type}.png")
+        fi_path = os.path.join(FIGURES_SUBDIR, f"{tag}_{TARGET_MODE_NAME}_feature_importance_{imp_type}.png")
         plt.savefig(fi_path, dpi=150)
         plt.close()
+        print(f"[INFO] Saved feature importance plot ({imp_type}): {fi_path}")
 
-        print(f"[INFO] Saved {imp_type} feature importance plot: {fi_path}")
-
-    # Save feature importance summary
-    importance_json_path = os.path.join(MODEL_DIR, f"feature_importance_summary_{tag}.json")
     with open(importance_json_path, "w") as f:
         json.dump(importance_summary, f, indent=2)
-    print(f"[INFO] Saved all importance values to {importance_json_path}")
+    print(f"[INFO] Saved importance summary: {importance_json_path}")
 
     # ================================================================
-    # Save Summary
+    # Save Summary JSON
     # ================================================================
     summary = {
         "mode": tag,
-        "samples": n_samples,
-        "features": n_features,
-        "mse": mse,
-        "rmse": rmse,
-        "mae": mae,
-        "mre": mre,
-        "mare": mare,
+        "target_mode": TARGET_MODE_NAME,
+        "samples": int(n_samples),
+        "features": int(n_features),
+        "mse": float(mse),
+        "rmse": float(rmse),
+        "mae": float(mae),
+        "mre": float(mre),
+        "mare": float(mare),
         "model_path": model_path,
-        "feature_importance": fi_path,
+        "metrics_plot": metrics_path,
+        "feature_importance_json": importance_json_path,
+        "figures_dir": FIGURES_SUBDIR,
+        "models_dir": MODELS_SUBDIR,
     }
-    with open(os.path.join(MODEL_DIR, f"summary_{tag}.json"), "w") as f:
-        json.dump(summary, f, indent=2)
 
-    print(f"\n[INFO] Training complete for {tag}. Summary saved.")
+    with open(summary_path, "w") as f:
+        json.dump(summary, f, indent=2)
+    print(f"[INFO] Summary saved: {summary_path}")
 
 
 # ================================================================
