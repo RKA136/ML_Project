@@ -38,7 +38,7 @@ from sklearn.metrics import mean_squared_error, mean_absolute_error
 # ================================================================
 # Configuration
 # ================================================================
-DATA_MODE = "mode3"          # choose among: mode1, mode2, mode3, mode4
+DATA_MODE = "mode2"          # choose among: mode1, mode2, mode3, mode4
 MANUAL_DATA_PATH = None      # optional override
 
 TEST_SIZE = 0.10
@@ -128,16 +128,16 @@ def train():
     # Target Definition (choose ONE)
     # ================================================================
     # (1) Direct prediction
-    y_target = y
-    TARGET_MODE_NAME = "direct_energy"
+    # y_target = y
+    # TARGET_MODE_NAME = "direct_energy"
 
     # (2) Scaled ratio
     # y_target = 100.0 * (y / (np.sum(X[:, :28], axis=1) + 1e-8))
     # TARGET_MODE_NAME = "scaled_ratio"
 
     # (3) Log-scaled ratio
-    # y_target = np.log(100.0 * (y / (np.sum(X[:, :28], axis=1) + 1e-8)) + 1.0)
-    # TARGET_MODE_NAME = "log_scaled_ratio"
+    y_target = np.log(100.0 * (y / (np.sum(X[:, :28], axis=1) + 1e-8)) + 1.0)
+    TARGET_MODE_NAME = "log_scaled_ratio"
 
     print(f"[INFO] Selected target mode: {TARGET_MODE_NAME}")
 

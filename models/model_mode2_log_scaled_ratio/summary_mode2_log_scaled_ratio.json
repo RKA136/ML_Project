@@ -1,0 +1,16 @@
+{
+  "mode": "mode2",
+  "target_mode": "log_scaled_ratio",
+  "samples": 3232809,
+  "features": 36,
+  "mse": 0.06576599180698395,
+  "rmse": 0.256448809330408,
+  "mae": 0.20302553474903107,
+  "mre": 0.0009089513914659619,
+  "mare": 0.021660365164279938,
+  "model_path": "E:/GitHub/ML_Project/models\\model_mode2_log_scaled_ratio\\xgb_model_mode2_log_scaled_ratio.json",
+  "metrics_plot": "E:/GitHub/ML_Project/figures\\figures_mode2_log_scaled_ratio\\mode2_log_scaled_ratio_metrics_vs_epochs.png",
+  "feature_importance_json": "E:/GitHub/ML_Project/models\\model_mode2_log_scaled_ratio\\feature_importance_summary_mode2_log_scaled_ratio.json",
+  "figures_dir": "E:/GitHub/ML_Project/figures\\figures_mode2_log_scaled_ratio",
+  "models_dir": "E:/GitHub/ML_Project/models\\model_mode2_log_scaled_ratio"
+}
