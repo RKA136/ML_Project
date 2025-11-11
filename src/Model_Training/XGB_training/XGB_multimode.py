@@ -9,6 +9,7 @@ Supports preprocessing modes:
     mode2 → CPU cumulant features
     mode3 → per-layer energy sums
     mode4 → layerwise [E_sum, E1/E7, E7/E19]
+    mode5 → layerwise [N_hits, E1/E7, E7/E19]
 
 Target modes:
     (1) Direct energy prediction
@@ -38,7 +39,7 @@ from sklearn.metrics import mean_squared_error, mean_absolute_error
 # ================================================================
 # Configuration
 # ================================================================
-DATA_MODE = "mode1"          # choose among: mode1, mode2, mode3, mode4
+DATA_MODE = "mode5"          # choose among: mode1, mode2, mode3, mode4
 MANUAL_DATA_PATH = None      # optional override
 
 TEST_SIZE = 0.10
@@ -76,6 +77,10 @@ def load_dataset(data_mode):
         "mode4": {
             "path": "processed_data_large_v4.pt",
             "description": "v4: [E_sum (28), E1/E7 (28), E7/E19 (28)]"
+        },
+        "mode5": {
+            "path": "processed_data_0001_v5.pt",
+            "description": "v5: [N_hits (28), E1/E7 (28), E7/E19 (28)] — per-layer hit counts plus ring ratios"
         },
     }
 
