@@ -181,7 +181,7 @@ def compute_and_save_features_vectorized(h5_path, output_path, n_layers=28, batc
     # Convert to tensor and save
     features_tensor = torch.tensor(np.vstack(features_list), dtype=torch.float32)
     targets_tensor = torch.tensor(targets_all, dtype=torch.float32)
-    torch.save({'data': features_tensor, 'targets': targets_tensor}, output_path)
+    torch.save({'X': features_tensor, 'y': targets_tensor}, output_path)
 
     print(f"Processed features saved to {output_path}")
     h5_file.close()
@@ -196,7 +196,7 @@ if __name__ == "__main__":
 
     data_dir = config["data_dir"]
     input_file = os.path.join(data_dir, "hgcal_electron_data_large.h5")
-    output_file = os.path.join(data_dir, "hgcal_electron_data_large_processed.pt")
+    output_file = os.path.join(data_dir, "processed_data_large_v2.pt")
 
     compute_and_save_features_vectorized(input_file, output_file, n_layers=28, batch_size=10000)
     print("Feature computation and saving completed.")

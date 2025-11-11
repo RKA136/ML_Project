@@ -217,7 +217,7 @@ def process_batches(filename, batch_size=20000, use_cupy=False, out_filename="fe
         # Save target values and final torch tensor
         true_energy = f["true_energy"][:n_events].astype(np.float32)
 
-    out_torch = os.path.join(data_dir, "processed_data_v4.pt")
+    out_torch = os.path.join(data_dir, "processed_data_large_v4.pt")
     torch.save({"X": torch.from_numpy(np.asarray(feature_mmap)),
                 "y": torch.from_numpy(true_energy.reshape(-1, 1))}, out_torch)
 

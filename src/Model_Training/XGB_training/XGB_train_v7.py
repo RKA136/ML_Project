@@ -118,9 +118,23 @@ def load_processed_tensors():
 def train():
     ensure_dirs()
     print("Loading processed data (v7 log-ratio target)...")
-    X, y = load_processed_tensors()
+    X, y_true = load_processed_tensors()
     n_samples, n_features = X.shape
     print(f"Loaded {n_samples} samples with {n_features} features.")
+    
+    # ================================================================
+    # Target definition (choose ONE and comment out the others)
+    # ================================================================
+
+    # (1) Direct prediction of true energy
+    y = y_true
+
+    # (2) Predict scaled ratio: 100 × (E_true / Σ fractional layer energies)
+    # y = 100.0 * (y_true / (np.sum(X[:, :28], axis=1) + 1e-8))
+
+    # (3) Predict log-transformed scaled ratio: log(100 × (E_true / Σ fractional layer energies) + 1)
+    # y = np.log(100.0 * (y_true / (np.sum(X[:, :28], axis=1) + 1e-8)) + 1.0)
+
 
     # Split dataset
     X_temp, X_test, y_temp, y_test = train_test_split(X, y, test_size=TEST_SIZE, random_state=RANDOM_STATE)

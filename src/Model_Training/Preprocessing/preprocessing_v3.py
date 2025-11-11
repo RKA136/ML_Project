@@ -131,7 +131,7 @@ def per_event_feature_calculation(filename, batch_size=20000):
             start_index += total_hits
         
         # Load true energies
-        true_E_all = f["true_energy"][:].astype(np.float32)
+        true_E_all = f["target"][:].astype(np.float32)
         
     # Stack all batches
     X = np.vstack(feature_list)
@@ -145,11 +145,11 @@ def per_event_feature_calculation(filename, batch_size=20000):
     with open("config.json", "r") as f:
         config = json.load(f)
         data_dir = config["data_dir"]
-    torch.save({"X": X_tensor, "y": y_tensor}, os.path.join(data_dir, "processed_data.pt"))
+    torch.save({"X": X_tensor, "y": y_tensor}, os.path.join(data_dir, "processed_data_0001_v3.pt"))
     
     print(f"Generated {X.shape[0]} events, {X.shape[1]} features each.")
     return X_tensor, y_tensor
 
 if __name__ == "__main__":
-    filename = "hgcal_electron_data_large.h5"
+    filename = "hgcal_electron_data_0001.h5"
     per_event_feature_calculation(filename, 20000)
