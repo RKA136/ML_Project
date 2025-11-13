@@ -40,7 +40,7 @@ import optuna
 # ================================================================
 # Configuration
 # ================================================================
-DATA_MODE = "mode5"          # choose among: mode1, mode2, mode3, mode4, mode5
+DATA_MODE = "mode4"          # choose among: mode1, mode2, mode3, mode4, mode5
 MANUAL_DATA_PATH = None      # optional override
 
 TEST_SIZE = 0.10
