@@ -12,7 +12,7 @@ with open("config.json", "r") as f:
     config = json.load(f)
 data_dir = config["data_dir"]
 
-data_path = os.path.join(data_dir, "processed_data_large.pt")
+data_path = os.path.join(data_dir, "processed_data_large_v1.pt")
 data = torch.load(data_path)
 
 X = data["X"].numpy()  # features: [E_sum, E_max, r_std, z_std, r90, E_layer_frac...]
@@ -22,10 +22,10 @@ y = data["y"].numpy().flatten()  # true energy
 # Choose target energy
 # ===========================
 target_energy = 150.0  # GeV
-tolerance = 0.5         # ± tolerance to select events
+tolerance = 10         # ± tolerance to select events
 
 mask = (y >= target_energy - tolerance) & (y <= target_energy + tolerance)
-E_sum_target = X[mask, 0]
+E_sum_target = X[mask, 28]
 
 # ===========================
 # Fit histogram with Gaussian
