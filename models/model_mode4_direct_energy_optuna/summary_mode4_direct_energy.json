@@ -1,0 +1,39 @@
+{
+  "mode": "mode4",
+  "target_mode": "direct_energy",
+  "samples": 3232809,
+  "features": 84,
+  "mse": 10.267241477966309,
+  "rmse": 3.204253653811806,
+  "mae": 2.3557746410369873,
+  "mre": 0.00066131551284343,
+  "mare": 0.017633236944675446,
+  "model_path": "E:/GitHub/ML_Project/models\\model_mode4_direct_energy\\xgb_model_mode4_direct_energy.json",
+  "metrics_plot": "E:/GitHub/ML_Project/figures\\figures_mode4_direct_energy\\mode4_direct_energy_metrics_vs_epochs.png",
+  "feature_importance_json": "E:/GitHub/ML_Project/models\\model_mode4_direct_energy\\feature_importance_summary_mode4_direct_energy.json",
+  "figures_dir": "E:/GitHub/ML_Project/figures\\figures_mode4_direct_energy",
+  "models_dir": "E:/GitHub/ML_Project/models\\model_mode4_direct_energy",
+  "xgboost_params": {
+    "eta": 0.01750970799561206,
+    "max_depth": 10,
+    "min_child_weight": 8.131493459056138,
+    "gamma": 6.514168237463496,
+    "max_delta_step": 4,
+    "lambda": 0.03338447369030099,
+    "alpha": 0.928959062962583,
+    "subsample": 0.7748009514076761,
+    "colsample_bytree": 0.5327559570767685,
+    "colsample_bylevel": 0.6993217171195155,
+    "colsample_bynode": 0.9344787328848734,
+    "grow_policy": "lossguide",
+    "max_leaves": 421,
+    "objective": "reg:squarederror",
+    "eval_metric": [
+      "rmse",
+      "mae"
+    ],
+    "seed": 42,
+    "tree_method": "gpu_hist",
+    "verbosity": 1
+  }
+}
