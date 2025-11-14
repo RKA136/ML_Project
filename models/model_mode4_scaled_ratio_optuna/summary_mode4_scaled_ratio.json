@@ -1,0 +1,39 @@
+{
+  "mode": "mode4",
+  "target_mode": "scaled_ratio",
+  "samples": 3232809,
+  "features": 84,
+  "mse": 0.033637989312410355,
+  "rmse": 0.18340662286954185,
+  "mae": 0.01843450777232647,
+  "mre": -0.00010201521217823029,
+  "mare": 0.017911048606038094,
+  "model_path": "E:/GitHub/ML_Project/models\\model_mode4_scaled_ratio_optuna\\xgb_model_mode4_scaled_ratio.json",
+  "metrics_plot": "E:/GitHub/ML_Project/figures\\figures_mode4_scaled_ratio_optuna\\mode4_scaled_ratio_metrics_vs_epochs.png",
+  "feature_importance_json": "E:/GitHub/ML_Project/models\\model_mode4_scaled_ratio_optuna\\feature_importance_summary_mode4_scaled_ratio.json",
+  "figures_dir": "E:/GitHub/ML_Project/figures\\figures_mode4_scaled_ratio_optuna",
+  "models_dir": "E:/GitHub/ML_Project/models\\model_mode4_scaled_ratio_optuna",
+  "xgboost_params": {
+    "eta": 0.033166962022948346,
+    "max_depth": 8,
+    "min_child_weight": 1.0704994735978313,
+    "gamma": 5.682814652907499,
+    "max_delta_step": 1,
+    "lambda": 9.48414011659792,
+    "alpha": 9.804972607891468,
+    "subsample": 0.6941853007537011,
+    "colsample_bytree": 0.9971316059156512,
+    "colsample_bylevel": 0.6711235972225192,
+    "colsample_bynode": 0.6400552557159415,
+    "grow_policy": "depthwise",
+    "max_leaves": 308,
+    "objective": "reg:squarederror",
+    "eval_metric": [
+      "rmse",
+      "mae"
+    ],
+    "seed": 42,
+    "tree_method": "gpu_hist",
+    "verbosity": 1
+  }
+}

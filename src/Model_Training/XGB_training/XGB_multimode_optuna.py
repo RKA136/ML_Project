@@ -273,24 +273,24 @@ def train():
     # Target Definition (choose ONE)
     # ================================================================
     # (1) Direct prediction
-    y_target = y
-    TARGET_MODE_NAME = "direct_energy"
+    # y_target = y
+    # TARGET_MODE_NAME = "direct_energy"
 
     # (2) Scaled ratio
     # y_target = 100.0 * (y / (np.sum(X[:, :28], axis=1) + 1e-8))
     # TARGET_MODE_NAME = "scaled_ratio"
 
     # (3) Log-scaled ratio
-    # y_target = np.log(100.0 * (y / (np.sum(X[:, :28], axis=1) + 1e-8)) + 1.0)
-    # TARGET_MODE_NAME = "log_scaled_ratio"
+    y_target = np.log(100.0 * (y / (np.sum(X[:, :28], axis=1) + 1e-8)) + 1.0)
+    TARGET_MODE_NAME = "log_scaled_ratio"
 
     print(f"[INFO] Selected target mode: {TARGET_MODE_NAME}")
 
     # ================================================================
     # Directory Setup
     # ================================================================
-    FIGURES_SUBDIR = os.path.join(FIGURES_ROOT, f"figures_{tag}_{TARGET_MODE_NAME}")
-    MODELS_SUBDIR = os.path.join(MODELS_ROOT, f"model_{tag}_{TARGET_MODE_NAME}")
+    FIGURES_SUBDIR = os.path.join(FIGURES_ROOT, f"figures_{tag}_{TARGET_MODE_NAME}_optuna")
+    MODELS_SUBDIR = os.path.join(MODELS_ROOT, f"model_{tag}_{TARGET_MODE_NAME}_optuna")
     os.makedirs(FIGURES_SUBDIR, exist_ok=True)
     os.makedirs(MODELS_SUBDIR, exist_ok=True)
     print(f"[INFO] Figures folder: {FIGURES_SUBDIR}")
